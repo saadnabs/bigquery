@@ -100,21 +100,21 @@ def main(project_id, sqlFile, batch, num_retries, interval):
     sql = build_statements(sqlFile)
 
     for statement in sql:
-      try:
+        try:
         # Submit the job and wait for it to complete.
-        query_job = async_query(
-            bigquery,
-            project_id,
-            statement,
-            batch,
-            num_retries)
+            query_job = async_query(
+                bigquery,
+                project_id,
+                statement,
+                batch,
+                num_retries)
 
-        print('Job started: ' + query_job['jobReference']['jobId'])
+            print('Job started: ' + query_job['jobReference']['jobId'])
 
         # poll_job(bigquery, query_job)
 
-      except Exception, e:
-        print "Error: ", e
+        except Exception, e:
+            print "Error: ", e
 # [END run]
 
 
