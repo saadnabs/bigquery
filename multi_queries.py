@@ -100,6 +100,8 @@ def main(project_id, commandsFile, batch, num_retries, interval):
         
     print('project_id ' + project_id)
     
+    c = Command()
+    
 '''
 def main(project_id, sqlFile, batch, num_retries, interval):
     # [START build_service]
@@ -130,6 +132,20 @@ def main(project_id, sqlFile, batch, num_retries, interval):
             print "Error: ", e
 '''
 # [END run]
+
+#Class
+class Command:
+    """The command object to be used for loading the queries to be run"""
+    category = ""
+    executable = ""
+    timesToExecute = 0
+
+    def f(self):
+        return 'new Command created'
+    
+    def __init__(self):
+        print 'new blank command created'
+    
 
 #Script defaults that can be set
 default_project_id="nsaad-demos"
