@@ -50,10 +50,12 @@ def loadCommands(filename):
         if (len(commandComponents) != 3):
             print("ERROR: The format of the file doesn't match the expected format, please follow the categoy;number;command format")
             sys.exit()
-        c = Command(commandComponents[0], commandComponents[1], commandComponents[2])
+        #c = Command(commandComponents[0], commandComponents[1], commandComponents[2])
+        for i in range(0, int(commandComponents[1])):
+            c = Command(commandComponents[0], commandComponents[2])
         
-        #Store the commands in the list to run
-        commands.append(c);
+            #Store the commands in the list to run
+            commands.append(c);
         
 # [END loadCommands]
 
@@ -61,7 +63,7 @@ def loadCommands(filename):
 def runCommands():
     for c in commands:
         #c.print_command_details()
-        c.execute_x_times()
+        c.execute()
     #TODO add some logic to handle running simples more regularly
 
 # [END runCommands]
@@ -69,6 +71,7 @@ def runCommands():
 # [START run]
 def main(project_id, commandsFile, batch, num_retries, interval):
     loadCommands(commandsFile)
+    print(str(len(commands)))
     
     print(str(datetime.now()) + " -- Time command running started: ")
     print("*******************************************************")
@@ -148,19 +151,20 @@ class Command:
     """The command object to be used for loading the queries to be run"""
     category = ""
     executable = ""
-    timesToExecute = 0
+    #timesToExecute = 0
 
-    def __init__(self, category, num, command):
+    #def __init__(self, category, num, command):
+    def __init__(self, category, command):
         self.category = category
         self.executable = command
-        self.timesToExecute = num
         
     def print_command_details(self):
         print('Command with category[' + self.category + '] timesToExecute[' + str(self.timesToExecute) + '] \n--> executable[' + self.executable + '] ')
     
     #TODO might want to pull the loop out of the command class otherwise they don't happen in parallel..
-    def execute_x_times(self):
-        for i in range(0, int(self.timesToExecute)):
+    #def execute_x_times(self):
+    def execute(self):
+        #for i in range(0, int(self.timesToExecute)):
             try:
                 output = subprocess.check_output([self.executable], shell = True)
             except CalledProcessError as exc:
