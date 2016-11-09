@@ -19,7 +19,7 @@ Author:   Nabeel Saad
 Desc:     Command-line application, which asynchronously executes jobs via bash/CLI (for BQ and others like Hive).
 Use:      Commands to run are expected in a separate file, each command on a new line, semi-colon delimited with format:
           category; number of times to run; command
-Params:   TODO: GCP / BigQuery project ID, SQL file.
+Params:   GCP / BigQuery project ID, file containing commands to run
 """
 
 import argparse
@@ -35,29 +35,7 @@ from googleapiclient import discovery
 from oauth2client.client import GoogleCredentials
 from subprocess import Popen, PIPE, CalledProcessError
 from datetime import datetime
-
-# [START poll_job]
-#TODO: old code
-def poll_job(bigquery, job):
-    """Waits for a job to complete."""
-
-    print('Waiting for job to finish...')
-
-    request = bigquery.jobs().get(
-        projectId=job['jobReference']['projectId'],
-        jobId=job['jobReference']['jobId'])
-
-    while True:
-        result = request.execute(num_retries=2)
-
-        if result['status']['state'] == 'DONE':
-            if 'errorResult' in result['status']:
-                raise RuntimeError(result['status']['errorResult'])
-            print('Job complete.')
-            return
-
-        time.sleep(1)
-# [END poll_job]
+from time import sleep
 
 # [START loadCommands]
 def loadCommands(filename):
@@ -92,16 +70,20 @@ def runCommands():
 def main(project_id, commandsFile, batch, num_retries, interval):
     loadCommands(commandsFile)
     
-    print("Time command running started: " + str(datetime.now()))
+    print(str(datetime.now()) + " -- Time command running started: ")
+    print("*******************************************************")
     commands_start_time = int(round(time.time() * 1000))
     runCommands()
     commands_end_time = int(round(time.time() * 1000))
-    print("Time command running ended: " + str(datetime.now()))
-    print("Commands ran in " + str((commands_end_time - commands_start_time)))
-    
-    #TODO: poll all jobs and update their times
-    
+    print(str(datetime.now()) + " -- Time command running ended: ")
+    print("--> Commands ran in " + str((commands_end_time - commands_start_time)))
+    print("*******************************************************\n")
+        
     poll_jobs_run()
+    
+    print("\n*******************************************************")
+    print(str(datetime.now()) + " -- Job Results")
+    print("*******************************************************\n")
     output_completed_jobs();
     ''''
     #Creating a single command
@@ -128,41 +110,38 @@ def get_jobresult_with_id(job_id):
 # [END get_jobresult_with_id]   
      
 def poll_jobs_run():
-    """TODO Prints the dict contains the jobs run, their status and timings"""
-    '''
-    for keys in jobs_run:
-        print("jobId--> " + keys)
-        for values in jobs_run[keys]:
-            print (values,':',jobs_run[keys][values])
-    '''
-    #while len(jobs_run) > 0:
-    #TODO: keep checking till this list is empty - how do we remove items from the list without messing up the iterator 
-    for item in jobs_run[:]: #i in range(0, len(jobs_run)):      
-        jb = item      
-        #TODO: This is currently BQ specific way of getting job_id
-        try:
-            output = subprocess.check_output(['bq', '--format', 'json', 'wait', jb.job_id, '1'])
-        except CalledProcessError as exc:
-            print("Status: FAIL", exc.returncode, exc.output)
-        else:
-            parsedjson = json.loads(output)
-            status = parsedjson['status']
-            state = status['state']
-            
-            if(state == "DONE"):
-                jb.status = "DONE"
+    """Polls the list of jobs run, and updates their status and statistics when they are complete and moves them to jobs_completed"""
+    while len(jobs_run) > 0: 
+        for item in jobs_run[:]:     
+            jb = item      
+            #TODO: This is currently BQ specific way of getting job_id
+            try:
+                output = subprocess.check_output(['bq', '--format', 'json', 'wait', jb.job_id, '1'])
+            except CalledProcessError as exc:
+                if(exc.output.find("Wait timed out") == -1):
+                    print("Status: FAIL", exc.returncode, exc.output)
+                pass #Ignore exceptions about time outs as we are waiting till bq wait says the job is done
+            else:
+                parsedjson = json.loads(output)
+                status = parsedjson['status']
+                state = status['state']
                 
-                statistics = parsedjson['statistics']
-                jb.start_time = statistics['startTime']
-                jb.end_time = statistics['endTime']
-                jb.bytes_processed = statistics['totalBytesProcessed']
-                jb.duration = int(jb.end_time) - int(jb.start_time)
-                
-                jobs_completed.append(jb)
-                jobs_run.remove(jb)
-
-    print("jobs_run:" + str(len(jobs_run)))
-    print("jobs_completed: " + str(len(jobs_completed)))
+                if(state == "DONE"):
+                    jb.status = "DONE"
+                    
+                    statistics = parsedjson['statistics']
+                    jb.start_time = statistics['startTime']
+                    jb.end_time = statistics['endTime']
+                    jb.bytes_processed = statistics['totalBytesProcessed']
+                    jb.duration = int(jb.end_time) - int(jb.start_time)
+                    
+                    jobs_completed.append(jb)
+                    jobs_run.remove(jb)
+    
+        print("\njobs_run:" + str(len(jobs_run)) + "  jobs_completed: " + str(len(jobs_completed)))
+        
+        sleep(1)
+        #FR-01: If timeout passed in, quit the loop after X times polled.
     
 #Class
 class Command:
@@ -179,7 +158,7 @@ class Command:
     def print_command_details(self):
         print('Command with category[' + self.category + '] timesToExecute[' + str(self.timesToExecute) + '] \n--> executable[' + self.executable + '] ')
     
-    #TODO might want to pull the loop out of the command otherwise they don't happen in parallel..
+    #TODO might want to pull the loop out of the command class otherwise they don't happen in parallel..
     def execute_x_times(self):
         for i in range(0, int(self.timesToExecute)):
             try:
@@ -188,14 +167,23 @@ class Command:
                 print("Status: FAIL", exc.returncode, exc.output)
             else:
                 #TODO: This is currently BQ specific way of getting job_id
-                print(output) #Outputs the status of running the query
-                job_id_location = output.find(default_project_id) + len(default_project_id) + 1
                 job_id_newline = output.find("\n") 
-                job_id = output[job_id_location:job_id_newline]
+                output = output[:job_id_newline] #Remove the \ns before printing
+                print(str(datetime.now()) + " " + output) #Outputs the status of running the query
+                job_id_location = output.find(default_project_id) + len(default_project_id) + 1
+                job_id = output[job_id_location:]
                 jb = JobResult(job_id)
                 jobs_run.append(jb)
                 #print("job_id " + output[job_id_location:])
                 #jobs_run[output[job_id_location:]] = {'status' : 'started', 'startTime' : '', 'endTime' : '', 'duration' : ''}
+
+
+def human_readable_bytes(num, suffix='B'):
+    for unit in ['','Ki','Mi','Gi','Ti','Pi','Ei','Zi']:
+        if abs(num) < 1024.0:
+            return "%3.1f%s%s" % (num, unit, suffix)
+        num /= 1024.0
+    return "%.1f%s%s" % (num, 'Yi', suffix)  
 
 #Class
 class JobResult:
@@ -215,7 +203,7 @@ class JobResult:
     
     def print_jobresult_details(self):
         print('JobResult with job_id[' + self.job_id + '] status[' + self.status + '] start_time[' + str(self.start_time) + 
-              '] end_time[' + str(self.end_time) + '] duration[' + str(self.duration) + '] bytes_processed[' + str(self.bytes_processed) + ']')    
+              '] end_time[' + str(self.end_time) + '] duration[' + str(self.duration) + '] bytes_processed[' + human_readable_bytes(int(self.bytes_processed)) + ']')  
 
 #Script defaults that can be set
 default_project_id="nsaad-demos"
@@ -225,7 +213,7 @@ commands = [] #Used to store the commands loaded from the file
 jobs_run = [] #Used to store the job results of running jobs
 jobs_completed = [] #Used to store the job results of jobs that have been confirmed completed.
 #jobs_run = {} #Used to store the IDs of all the jobs run and get their status and details
-
+  
 # [START main]
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
@@ -254,4 +242,6 @@ if __name__ == '__main__':
         args.batch,
         args.num_retries,
         args.poll_interval)
+# [END main]
+
 # [END main]
