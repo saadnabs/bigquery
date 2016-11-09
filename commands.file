@@ -1,4 +1,4 @@
 #category;number of times to run command;shell command to run
-#complex;1;bq --nosync query --nouse_cache "SELECT REGEXP_REPLACE(title, r'_', ' ') AS regexp_title, views FROM (SELECT title, SUM(views) as views FROM [bigquery-samples:wikipedia_benchmark.Wiki1B] WHERE NOT title CONTAINS ':' AND wikimedia_project='wp' AND language='en' AND REGEXP_MATCH(title, r'^G.*o.*o.*e$') GROUP BY title ORDER BY views DESC LIMIT 100)"
-#medium  ;1;bq --nosync query --nouse_cache "SELECT word, word_count, corpus FROM publicdata:samples.shakespeare WHERE (REGEXP_MATCH(word,r'[A-Z]')) AND LENGTH(word) > 3 ORDER BY word_count DESC LIMIT 2000"
-simple  ;12;bq  --nosync query --nouse_cache "SELECT COUNT(*) FROM publicdata:samples.wikipedia" 
+complex;1;bq --nosync query --nouse_cache "SELECT REGEXP_REPLACE(title, r'_', ' ') AS regexp_title, views FROM (SELECT title, SUM(views) as views FROM [bigquery-samples:wikipedia_benchmark.Wiki1B] WHERE NOT title CONTAINS ':' AND wikimedia_project='wp' AND language='en' AND REGEXP_MATCH(title, r'^G.*o.*o.*e$') GROUP BY title ORDER BY views DESC LIMIT 100)"
+medium  ;2;bq --nosync query --nouse_cache "SELECT word, word_count, corpus FROM publicdata:samples.shakespeare WHERE (REGEXP_MATCH(word,r'[A-Z]')) AND LENGTH(word) > 3 ORDER BY word_count DESC LIMIT 2000"
+simple  ;4;bq  --nosync query --nouse_cache "SELECT COUNT(*) FROM publicdata:samples.wikipedia"

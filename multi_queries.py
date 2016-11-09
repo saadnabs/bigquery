@@ -53,7 +53,6 @@ def loadCommands(filename):
         #c = Command(commandComponents[0], commandComponents[1], commandComponents[2])
         for i in range(0, int(commandComponents[1])):
             #c = Command(commandComponents[0], commandComponents[2])
-        
             #Store the commands in the list to run
             commands.append(commandComponents[2]);
         
@@ -65,11 +64,11 @@ def forkProcesses():
     #Attempting to get wait to work by not using shell=True
     for cmd in commands:
         #First the double quote to extract the SQL statement
-        first_quote = commands[0].find('"') + 1
-        statement = commands[0][first_quote:-2]
+        first_quote = cmd.find('"') + 1
+        statement = cmd[first_quote:-1]
         
         #Break up the command options into list
-        command_args = commands[0][:first_quote - 1].split()
+        command_args = cmd[:first_quote - 1].split()
         command_args.append(statement)
         
         #Run each command in a process and store the process details
@@ -78,8 +77,9 @@ def forkProcesses():
     for p in processes:
         p.wait() #Wait for the processes to finish
         out, err = p.communicate()
-        
         processes_outputs.append(out)
+        
+    #TODO bring outputs back in here, and output stuff as we wait
 # [END forkProcesses]
 
 # [START forkOutputs]
@@ -98,17 +98,25 @@ def forkOutputs():
 # [START poll_jobs_run] 
 def poll_jobs_run():
     """Polls the list of jobs run, and updates their status and statistics when they are complete and moves them to jobs_completed"""
-    while len(jobs_run) > 0: 
-        for item in jobs_run[:]:     
-            jb = item      
-            #TODO: This is currently BQ specific way of getting job_id
-            try:
-                output = subprocess.check_output(['bq', '--format', 'json', 'wait', jb.job_id, '1'])
-            except CalledProcessError as exc:
-                if(exc.output.find("Wait timed out") == -1):
-                    print("Status: FAIL", exc.returncode, exc.output)
-                pass #Ignore exceptions about time outs as we are waiting till bq wait says the job is done
+    while len(jobs_run) > 0:
+        processes = []
+        processes_outputs = []
+        for jb in jobs_run:
+            command_args = ['bq', '--format', 'json', 'wait', jb.job_id, '1']
+            processes.append(subprocess.Popen(command_args, stdout=subprocess.PIPE, stderr=subprocess.PIPE))
+        
+        for p in processes:
+            p.wait() #Wait for the processes to finish
+            out, err = p.communicate()
+            if out != "":
+                processes_outputs.append(out)
             else:
+                processes_outputs.append(err)
+           
+        i = 0 
+        for jb in jobs_run[:]:
+            output = processes_outputs[i]
+            if(output.find("Wait timed out") == -1):
                 parsedjson = json.loads(output)
                 status = parsedjson['status']
                 state = status['state']
@@ -123,11 +131,12 @@ def poll_jobs_run():
                     jb.duration = int(jb.end_time) - int(jb.start_time)
                     
                     jobs_completed.append(jb)
-                    jobs_run.remove(jb)
-    
-        print("\njobs_run:" + str(len(jobs_run)) + "  jobs_completed: " + str(len(jobs_completed)))
+                    if jb in jobs_run: jobs_run.remove(jb)
+            i += 1
         
-        sleep(1)
+        print("\njobs_running:" + str(len(jobs_run)) + "  jobs_completed: " + str(len(jobs_completed)))
+        
+        sleep(1.5)
         #FR-01: If timeout passed in, quit the loop after X times polled.
 # [END poll_jobs_run]
 
