@@ -26,6 +26,7 @@ import json
 import time
 import uuid
 import subprocess
+import sys
 
 from googleapiclient import discovery
 from oauth2client.client import GoogleCredentials
@@ -68,16 +69,37 @@ def build_statements(filename):
     return sqlCommands
 # [END build_statements]
 
+# [START loadCommands]
+def loadCommands(filename):
+    print("hello load")
+    f = open(filename, 'r')
+    
+    for line in f:
+        #Ignore the line that gives an example of the format to be used in the file
+        if (line[:1] == "#"):
+            continue 
+        
+        commandComponents = (line[:-1] if line.endswith('\n') else line).split(';')
+        if (len(commandComponents) != 3):
+            print("ERROR: The format of the file doesn't match the expected format, please follow the categoy;number;command format")
+            sys.exit()
+        c = Command(commandComponents[0], commandComponents[1], commandComponents[2])
+        
+        #Store the commands in the list to run
+        commands.append(c);
+        
+# [END loadCommands]
+
 # [START run]
 def main(project_id, commandsFile, batch, num_retries, interval):
-    #TODO: loadCommands(commandsFile)
+    loadCommands(commandsFile)
     
-    c = Command('simple', '/opt/google-cloud-sdk/bin/bq query --nosync "SELECT COUNT(*) FROM publicdata:samples.wikipedia"', 2)
+    ''''c = Command('simple', 12, '/opt/google-cloud-sdk/bin/bq query --nosync "SELECT COUNT(*) FROM publicdata:samples.wikipedia"')
     print(c.print_command_details())
     c.execute_x_times()
         #TODO: any way to have jobs continue to repeat if they are simple or if long jobs haven't completed?
     
-    print_jobs_run()    
+    print_jobs_run()   ''' 
     
     #TODO: poll all jobs and update their times
     
@@ -99,13 +121,13 @@ class Command:
     executable = ""
     timesToExecute = 0
 
-    def __init__(self, category, command, num):
+    def __init__(self, category, num, command):
         self.category = category
         self.executable = command
         self.timesToExecute = num
         
     def print_command_details(self):
-        return 'Command with category[' + self.category + '] executable[' + self.executable + '] timesToExecute[' + str(self.timesToExecute) + ']'
+        print('Command with category[' + self.category + '] timesToExecute[' + str(self.timesToExecute) + '] \n-->executable[' + self.executable + '] ')
     
     def execute_x_times(self):
         for i in range(0, self.timesToExecute):
@@ -122,6 +144,7 @@ class Command:
 
 #Script defaults that can be set
 default_project_id="nsaad-demos"
+commands = [] #Used to store the commands loaded from the file
 jobs_run = {} #Used to store the IDs of all the jobs run and get their status and details
 
 # [START main]
