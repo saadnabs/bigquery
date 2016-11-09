@@ -92,7 +92,7 @@ def build_statements(filename):
 # [START run]
 def main(project_id, commandsFile, batch, num_retries, interval):
     try:
-        output = subprocess.check_output(['/opt/google-cloud-sdk/bin/bq query --nosync "SELECT COUNT(*) FROM publicdata:samples.wikipedia"'], shell = True)
+        output = "test" #subprocess.check_output(['/opt/google-cloud-sdk/bin/bq query --nosync "SELECT COUNT(*) FROM publicdata:samples.wikipedia"'], shell = True)
     except CalledProcessError as exc:
         print("Status: FAIL", exc.returncode, exc.output)
     else:
@@ -100,7 +100,11 @@ def main(project_id, commandsFile, batch, num_retries, interval):
         
     print('project_id ' + project_id)
     
-    c = Command()
+    c = Command('simple', '/opt/google-cloud-sdk/bin/bq query --nosync "SELECT COUNT(*) FROM publicdata:samples.wikipedia"', 2)
+    print(c.printCommandDetails())
+    c.executeXTimes()
+    
+    print "jobs_run: ", jobs_run[0:len(jobs_run)]
     
 '''
 def main(project_id, sqlFile, batch, num_retries, interval):
@@ -140,15 +144,29 @@ class Command:
     executable = ""
     timesToExecute = 0
 
-    def f(self):
-        return 'new Command created'
+    def __init__(self, category, command, num):
+        self.category = category
+        self.executable = command
+        self.timesToExecute = num
+        
+    def printCommandDetails(self):
+        return 'Command with category[' + self.category + '] executable[' + self.executable + '] timesToExecute[' + str(self.timesToExecute) + ']'
     
-    def __init__(self):
-        print 'new blank command created'
-    
+    def executeXTimes(self):
+        for i in range(0, self.timesToExecute):
+            try:
+                output = subprocess.check_output([self.executable], shell = True)
+            except CalledProcessError as exc:
+                print("Status: FAIL", exc.returncode, exc.output)
+            else:
+                print(output)
+                job_id_location = output.find(default_project_id) + len(default_project_id) + 1
+                #print("job_id " + output[job_id_location:])
+                jobs_run.append(output[job_id_location:])
 
 #Script defaults that can be set
 default_project_id="nsaad-demos"
+jobs_run = []
 
 # [START main]
 if __name__ == '__main__':
