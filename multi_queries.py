@@ -33,6 +33,7 @@ import datetime
 from googleapiclient import discovery
 from oauth2client.client import GoogleCredentials
 from subprocess import Popen, PIPE, CalledProcessError
+from datetime import datetime
 
 # [START poll_job]
 #TODO: old code
@@ -80,8 +81,9 @@ def loadCommands(filename):
 
 # [START runCommands]
 def runCommands():
-    for i in len(commands):
-        commands[i].execute_x_times()
+    for c in commands:
+        c.print_command_details()
+        c.execute_x_times()
     #TODO add some logic to handle running simples more regularly
 
 # [END runCommands]
@@ -90,9 +92,9 @@ def runCommands():
 def main(project_id, commandsFile, batch, num_retries, interval):
     loadCommands(commandsFile)
     
-    print("Time command running started: " + datetime.datetime.now())
+    print("Time command running started: " + str(datetime.now()))
     runCommands()
-    print("Time command running ended: " + datetime.datetime.now())
+    print("Time command running ended: " + str(datetime.now()))
     
     #TODO: poll all jobs and update their times
     
@@ -130,11 +132,11 @@ class Command:
         self.timesToExecute = num
         
     def print_command_details(self):
-        print('Command with category[' + self.category + '] timesToExecute[' + str(self.timesToExecute) + '] \n-->executable[' + self.executable + '] ')
+        print('Command with category[' + self.category + '] timesToExecute[' + str(self.timesToExecute) + '] \n--> executable[' + self.executable + '] ')
     
     #TODO might want to pull the loop out of the command otherwise they don't happen in parallel..
     def execute_x_times(self):
-        for i in range(0, self.timesToExecute):
+        for i in range(0, int(self.timesToExecute)):
             try:
                 output = subprocess.check_output([self.executable], shell = True)
             except CalledProcessError as exc:
