@@ -94,55 +94,8 @@ def forkOutputs():
         jb = JobResult(job_id)
         jobs_run.append(jb)
 # [END forkOutputs]
-
-# [START run]
-def main(project_id, commandsFile, batch, num_retries, interval):
-    loadCommands(commandsFile)
-        
-    print("*******************************************************")
-    print(str(datetime.now()) + " -- Time command running started: ")
-    commands_start_time = int(round(time.time() * 1000))
-    
-    forkProcesses()
-    
-    commands_end_time = int(round(time.time() * 1000))
-    
-    forkOutputs()
-    
-    print(str(datetime.now()) + " -- Time command running ended: ")
-    print("--> Commands ran in " + str((commands_end_time - commands_start_time)))
-    print("*******************************************************\n")
-        
-    poll_jobs_run()
-    
-    print("\n*******************************************************")
-    print(str(datetime.now()) + " -- Job Results")
-    print("*******************************************************\n")
-    output_completed_jobs();
-    ''''
-    #Creating a single command
-    c = Command('simple', 12, '/opt/google-cloud-sdk/bin/bq query --nosync "SELECT COUNT(*) FROM publicdata:samples.wikipedia"')
-    print(c.print_command_details())
-    c.execute_x_times()
-        #TODO: any way to have jobs continue to repeat if they are simple or if long jobs haven't completed?
-    
-    print_jobs_run()   '''
-    
-# [END run]
-
-def output_completed_jobs():
-    for i in range(0, len(jobs_completed)):
-        jobs_completed[i].print_jobresult_details()
-
-# [START get_jobresult_with_id]
-def get_jobresult_with_id(job_id):
-    for i in range(0, len(jobs_run)):
-        if jobs_run[i].job_id == job_id:
-            return jobs_run[i]
-    return NONE
-
-# [END get_jobresult_with_id]   
      
+# [START poll_jobs_run] 
 def poll_jobs_run():
     """Polls the list of jobs run, and updates their status and statistics when they are complete and moves them to jobs_completed"""
     while len(jobs_run) > 0: 
@@ -176,7 +129,14 @@ def poll_jobs_run():
         
         sleep(1)
         #FR-01: If timeout passed in, quit the loop after X times polled.
-    
+# [END poll_jobs_run]
+
+# [START output_completed_jobs]
+def output_completed_jobs():
+    for i in range(0, len(jobs_completed)):
+        jobs_completed[i].print_jobresult_details()    
+# [END output_completed_jobs]
+
 #Class
 class Command:
     """The command object to be used for loading the queries to be run"""
@@ -192,13 +152,6 @@ class Command:
     def print_command_details(self):
         print('Command with category[' + self.category + '] timesToExecute[' + str(self.timesToExecute) + '] \n--> executable[' + self.executable + '] ')
 #End Class
-
-def human_readable_bytes(num, suffix='B'):
-    for unit in ['','Ki','Mi','Gi','Ti','Pi','Ei','Zi']:
-        if abs(num) < 1024.0:
-            return "%3.1f%s%s" % (num, unit, suffix)
-        num /= 1024.0
-    return "%.1f%s%s" % (num, 'Yi', suffix)  
 
 #Class
 class JobResult:
@@ -221,6 +174,13 @@ class JobResult:
               '] end_time[' + str(self.end_time) + '] duration[' + str(self.duration) + '] bytes_processed[' + human_readable_bytes(int(self.bytes_processed)) + ']')  
 #End Class
 
+def human_readable_bytes(num, suffix='B'):
+    for unit in ['','Ki','Mi','Gi','Ti','Pi','Ei','Zi']:
+        if abs(num) < 1024.0:
+            return "%3.1f%s%s" % (num, unit, suffix)
+        num /= 1024.0
+    return "%.1f%s%s" % (num, 'Yi', suffix)  
+
 #Script defaults that can be set
 default_project_id="nsaad-demos"
 commands_start_time = 0
@@ -231,6 +191,32 @@ processes_outputs = []
 jobs_run = [] #Used to store the job results of running jobs
 jobs_completed = [] #Used to store the job results of jobs that have been confirmed completed.
 #jobs_run = {} #Used to store the IDs of all the jobs run and get their status and details
+  
+# [START run]
+def main(project_id, commandsFile, batch, num_retries, interval):
+    loadCommands(commandsFile)
+        
+    print("*******************************************************")
+    print(str(datetime.now()) + " -- Time command running started: ")
+    commands_start_time = int(round(time.time() * 1000))
+    
+    forkProcesses()
+    
+    commands_end_time = int(round(time.time() * 1000))
+    
+    forkOutputs()
+    
+    print(str(datetime.now()) + " -- Time command running ended: ")
+    print("--> Commands ran in " + str((commands_end_time - commands_start_time)))
+    print("*******************************************************\n")
+        
+    poll_jobs_run()
+    
+    print("\n*******************************************************")
+    print(str(datetime.now()) + " -- Job Results")
+    print("*******************************************************\n")
+    output_completed_jobs();
+# [END run]   
   
 # [START main]
 if __name__ == '__main__':
@@ -260,6 +246,4 @@ if __name__ == '__main__':
         args.batch,
         args.num_retries,
         args.poll_interval)
-# [END main]
-
 # [END main]
