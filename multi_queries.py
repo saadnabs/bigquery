@@ -25,9 +25,11 @@ import argparse
 import json
 import time
 import uuid
+import subprocess
 
 from googleapiclient import discovery
 from oauth2client.client import GoogleCredentials
+from subprocess import Popen, PIPE, CalledProcessError
 
 
 # [START async_query]
@@ -88,6 +90,17 @@ def build_statements(filename):
 # [END build_statements]
 
 # [START run]
+def main(project_id, commandsFile, batch, num_retries, interval):
+    try:
+        output = subprocess.check_output(['/opt/google-cloud-sdk/bin/bq query --nosync "SELECT COUNT(*) FROM publicdata:samples.wikipedia"'], shell = True)
+    except CalledProcessError as exc:
+        print("Status: FAIL", exc.returncode, exc.output)
+    else:
+        print("ls output: " + output)
+        
+    print('project_id ' + project_id)
+    
+'''
 def main(project_id, sqlFile, batch, num_retries, interval):
     # [START build_service]
     # Grab the application's default credentials from the environment.
@@ -115,16 +128,19 @@ def main(project_id, sqlFile, batch, num_retries, interval):
 
         except Exception, e:
             print "Error: ", e
+'''
 # [END run]
 
+#Script defaults that can be set
+default_project_id="nsaad-demos"
 
 # [START main]
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
         description=__doc__,
         formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument('project_id', help='Your Google Cloud project ID.')
-    parser.add_argument('sqlFile', help='Semi-Colon delimited file containing SQL statements.')
+    parser.add_argument('project_id', nargs='?', help='Your Google Cloud project ID.', default=default_project_id)
+    parser.add_argument('commandsFile', help='Delimited file containing the commands to run.')
     parser.add_argument(
         '-b', '--batch', help='Run query in batch mode.', action='store_true')
     parser.add_argument(
@@ -142,7 +158,7 @@ if __name__ == '__main__':
 
     main(
         args.project_id,
-        args.sqlFile,
+        args.commandsFile,
         args.batch,
         args.num_retries,
         args.poll_interval)
