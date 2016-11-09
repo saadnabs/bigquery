@@ -91,20 +91,22 @@ def build_statements(filename):
 
 # [START run]
 def main(project_id, commandsFile, batch, num_retries, interval):
-    try:
-        output = "test" #subprocess.check_output(['/opt/google-cloud-sdk/bin/bq query --nosync "SELECT COUNT(*) FROM publicdata:samples.wikipedia"'], shell = True)
-    except CalledProcessError as exc:
-        print("Status: FAIL", exc.returncode, exc.output)
-    else:
-        print("ls output: " + output)
-        
-    print('project_id ' + project_id)
+    #loadCommands(commandsFile) - TODO
     
     c = Command('simple', '/opt/google-cloud-sdk/bin/bq query --nosync "SELECT COUNT(*) FROM publicdata:samples.wikipedia"', 2)
     print(c.printCommandDetails())
     c.executeXTimes()
     
-    print "jobs_run: ", jobs_run[0:len(jobs_run)]
+    printJobsRun()
+    
+     
+def printJobsRun():
+    """Prints the dict contains the jobs run, their status and timings"""
+    for keys in jobs_run:
+        print("jobId--> " + keys)
+        for values in jobs_run[keys]:
+            print (values,':',jobs_run[keys][values])
+            
     
 '''
 def main(project_id, sqlFile, batch, num_retries, interval):
@@ -159,14 +161,15 @@ class Command:
             except CalledProcessError as exc:
                 print("Status: FAIL", exc.returncode, exc.output)
             else:
+                #TODO BQ specific way of getting job_id
                 print(output)
                 job_id_location = output.find(default_project_id) + len(default_project_id) + 1
                 #print("job_id " + output[job_id_location:])
-                jobs_run.append(output[job_id_location:])
+                jobs_run[output[job_id_location:]] = {'status' : 'started', 'startTime' : '', 'endTime' : '', 'duration' : ''}
 
 #Script defaults that can be set
 default_project_id="nsaad-demos"
-jobs_run = []
+jobs_run = {}
 
 # [START main]
 if __name__ == '__main__':
