@@ -52,32 +52,63 @@ def loadCommands(filename):
             sys.exit()
         #c = Command(commandComponents[0], commandComponents[1], commandComponents[2])
         for i in range(0, int(commandComponents[1])):
-            c = Command(commandComponents[0], commandComponents[2])
+            #c = Command(commandComponents[0], commandComponents[2])
         
             #Store the commands in the list to run
-            commands.append(c);
+            commands.append(commandComponents[2]);
         
 # [END loadCommands]
 
-# [START runCommands]
-def runCommands():
-    for c in commands:
-        #c.print_command_details()
-        c.execute()
-    #TODO add some logic to handle running simples more regularly
+# [START forkProcesses]
+def forkProcesses():
 
-# [END runCommands]
+    #Attempting to get wait to work by not using shell=True
+    for cmd in commands:
+        #First the double quote to extract the SQL statement
+        first_quote = commands[0].find('"') + 1
+        statement = commands[0][first_quote:-2]
+        
+        #Break up the command options into list
+        command_args = commands[0][:first_quote - 1].split()
+        command_args.append(statement)
+        
+        #Run each command in a process and store the process details
+        processes.append(subprocess.Popen(command_args, stdout=subprocess.PIPE, stderr=subprocess.PIPE))
+        
+    for p in processes:
+        p.wait() #Wait for the processes to finish
+        out, err = p.communicate()
+        
+        processes_outputs.append(out)
+# [END forkProcesses]
+
+# [START forkOutputs]
+def forkOutputs():
+    for out in processes_outputs:
+        job_id_newline = out.find("\n")
+        out = out[:job_id_newline] #Remove the \ns before printing
+        print(str(datetime.now()) + " " + str(out))
+        
+        job_id_location = out.find(default_project_id) + len(default_project_id) + 1
+        job_id = out[job_id_location:]
+        jb = JobResult(job_id)
+        jobs_run.append(jb)
+# [END forkOutputs]
 
 # [START run]
 def main(project_id, commandsFile, batch, num_retries, interval):
     loadCommands(commandsFile)
-    print(str(len(commands)))
-    
-    print(str(datetime.now()) + " -- Time command running started: ")
+        
     print("*******************************************************")
+    print(str(datetime.now()) + " -- Time command running started: ")
     commands_start_time = int(round(time.time() * 1000))
-    runCommands()
+    
+    forkProcesses()
+    
     commands_end_time = int(round(time.time() * 1000))
+    
+    forkOutputs()
+    
     print(str(datetime.now()) + " -- Time command running ended: ")
     print("--> Commands ran in " + str((commands_end_time - commands_start_time)))
     print("*******************************************************\n")
@@ -160,27 +191,7 @@ class Command:
         
     def print_command_details(self):
         print('Command with category[' + self.category + '] timesToExecute[' + str(self.timesToExecute) + '] \n--> executable[' + self.executable + '] ')
-    
-    #TODO might want to pull the loop out of the command class otherwise they don't happen in parallel..
-    #def execute_x_times(self):
-    def execute(self):
-        #for i in range(0, int(self.timesToExecute)):
-            try:
-                output = subprocess.check_output([self.executable], shell = True)
-            except CalledProcessError as exc:
-                print("Status: FAIL", exc.returncode, exc.output)
-            else:
-                #TODO: This is currently BQ specific way of getting job_id
-                job_id_newline = output.find("\n") 
-                output = output[:job_id_newline] #Remove the \ns before printing
-                print(str(datetime.now()) + " " + output) #Outputs the status of running the query
-                job_id_location = output.find(default_project_id) + len(default_project_id) + 1
-                job_id = output[job_id_location:]
-                jb = JobResult(job_id)
-                jobs_run.append(jb)
-                #print("job_id " + output[job_id_location:])
-                #jobs_run[output[job_id_location:]] = {'status' : 'started', 'startTime' : '', 'endTime' : '', 'duration' : ''}
-
+#End Class
 
 def human_readable_bytes(num, suffix='B'):
     for unit in ['','Ki','Mi','Gi','Ti','Pi','Ei','Zi']:
@@ -208,12 +219,15 @@ class JobResult:
     def print_jobresult_details(self):
         print('JobResult with job_id[' + self.job_id + '] status[' + self.status + '] start_time[' + str(self.start_time) + 
               '] end_time[' + str(self.end_time) + '] duration[' + str(self.duration) + '] bytes_processed[' + human_readable_bytes(int(self.bytes_processed)) + ']')  
+#End Class
 
 #Script defaults that can be set
 default_project_id="nsaad-demos"
 commands_start_time = 0
 commands_end_time = 0
 commands = [] #Used to store the commands loaded from the file
+processes = [] #Used to store the processes launched in parallel to run all the commands
+processes_outputs = []
 jobs_run = [] #Used to store the job results of running jobs
 jobs_completed = [] #Used to store the job results of jobs that have been confirmed completed.
 #jobs_run = {} #Used to store the IDs of all the jobs run and get their status and details
