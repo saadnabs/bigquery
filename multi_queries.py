@@ -14,11 +14,11 @@
 # limitations under the License.
 
 """
-Date:     08/06/16
-Author:   Rich Radley
-Desc:     Command-line application, which asynchronously executes SQL statements  in BigQuery.
-Use:      SQL statements are expected in a separate file, semi-colon delimited.
-Params:   GCP / BigQuery project ID, SQL file.
+Date:     2016-11-09
+Author:   Nabeel Saad
+Desc:     Command-line application, which asynchronously executes jobs via bash/CLI (for BQ and others like Hive).
+Use:      TODO: SQL statements are expected in a separate file, semi-colon delimited.
+Params:   TODO: GCP / BigQuery project ID, SQL file.
 """
 
 import argparse
@@ -31,30 +31,8 @@ from googleapiclient import discovery
 from oauth2client.client import GoogleCredentials
 from subprocess import Popen, PIPE, CalledProcessError
 
-
-# [START async_query]
-def async_query(bigquery, project_id, query, batch=False, num_retries=5):
-    # Generate a unique job_id
-    job_data = {
-        'jobReference': {
-            'projectId': project_id,
-            'job_id': str(uuid.uuid4())
-        },
-        'configuration': {
-            'query': {
-                'query': query,
-                'priority': 'BATCH' if batch else 'INTERACTIVE',
-                'useQueryCache':'false'
-            }
-        }
-    }
-    return bigquery.jobs().insert(
-        projectId=project_id,
-        body=job_data).execute(num_retries=num_retries)
-# [END async_query]
-
-
 # [START poll_job]
+#TODO: old code
 def poll_job(bigquery, job):
     """Waits for a job to complete."""
 
@@ -77,6 +55,7 @@ def poll_job(bigquery, job):
 # [END poll_job]
 
 # [START build_statements]
+#TODO: old code
 def build_statements(filename):
     # Open and read the file as a single buffer
     fd = open(filename, 'r')
@@ -91,53 +70,27 @@ def build_statements(filename):
 
 # [START run]
 def main(project_id, commandsFile, batch, num_retries, interval):
-    #loadCommands(commandsFile) - TODO
+    #TODO: loadCommands(commandsFile)
     
     c = Command('simple', '/opt/google-cloud-sdk/bin/bq query --nosync "SELECT COUNT(*) FROM publicdata:samples.wikipedia"', 2)
-    print(c.printCommandDetails())
-    c.executeXTimes()
+    print(c.print_command_details())
+    c.execute_x_times()
+        #TODO: any way to have jobs continue to repeat if they are simple or if long jobs haven't completed?
     
-    printJobsRun()
+    print_jobs_run()    
+    
+    #TODO: poll all jobs and update their times
+    
+# [END run]
     
      
-def printJobsRun():
+def print_jobs_run():
     """Prints the dict contains the jobs run, their status and timings"""
     for keys in jobs_run:
         print("jobId--> " + keys)
         for values in jobs_run[keys]:
             print (values,':',jobs_run[keys][values])
-            
-    
-'''
-def main(project_id, sqlFile, batch, num_retries, interval):
-    # [START build_service]
-    # Grab the application's default credentials from the environment.
-    credentials = GoogleCredentials.get_application_default()
-
-    # Construct the service object for interacting with the BigQuery API.
-    bigquery = discovery.build('bigquery', 'v2', credentials=credentials)
-    # [END build_service]
-
-    sql = build_statements(sqlFile)
-
-    for statement in sql:
-        try:
-        # Submit the job and wait for it to complete.
-            query_job = async_query(
-                bigquery,
-                project_id,
-                statement,
-                batch,
-                num_retries)
-
-            print('Job started: ' + query_job['jobReference']['jobId'])
-
-        # poll_job(bigquery, query_job)
-
-        except Exception, e:
-            print "Error: ", e
-'''
-# [END run]
+        
 
 #Class
 class Command:
@@ -151,17 +104,17 @@ class Command:
         self.executable = command
         self.timesToExecute = num
         
-    def printCommandDetails(self):
+    def print_command_details(self):
         return 'Command with category[' + self.category + '] executable[' + self.executable + '] timesToExecute[' + str(self.timesToExecute) + ']'
     
-    def executeXTimes(self):
+    def execute_x_times(self):
         for i in range(0, self.timesToExecute):
             try:
                 output = subprocess.check_output([self.executable], shell = True)
             except CalledProcessError as exc:
                 print("Status: FAIL", exc.returncode, exc.output)
             else:
-                #TODO BQ specific way of getting job_id
+                #TODO: This is currently BQ specific way of getting job_id
                 print(output)
                 job_id_location = output.find(default_project_id) + len(default_project_id) + 1
                 #print("job_id " + output[job_id_location:])
@@ -169,7 +122,7 @@ class Command:
 
 #Script defaults that can be set
 default_project_id="nsaad-demos"
-jobs_run = {}
+jobs_run = {} #Used to store the IDs of all the jobs run and get their status and details
 
 # [START main]
 if __name__ == '__main__':
