@@ -97,6 +97,7 @@ def forkOutputs():
      
 # [START poll_jobs_run] 
 def poll_jobs_run():
+    #TODO BQ specific polling
     """Polls the list of jobs run, and updates their status and statistics when they are complete and moves them to jobs_completed"""
     while len(jobs_run) > 0:
         processes = []
@@ -114,6 +115,7 @@ def poll_jobs_run():
                 processes_outputs.append(err)
            
         i = 0 
+        #TODO BQ specific
         for jb in jobs_run[:]:
             output = processes_outputs[i]
             if(output.find("Wait timed out") == -1):
@@ -234,7 +236,7 @@ if __name__ == '__main__':
         formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument('project_id', nargs='?', help='Your Google Cloud project ID.', default=default_project_id)
     parser.add_argument('commandsFile', help='Delimited file containing the commands to run.')
-    #TODO remove unnecessary arguments
+    #TODO remove unnecessary arguments / add option for hive vs bq
     parser.add_argument(
         '-b', '--batch', help='Run query in batch mode.', action='store_true')
     parser.add_argument(
