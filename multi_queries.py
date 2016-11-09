@@ -17,7 +17,8 @@
 Date:     2016-11-09
 Author:   Nabeel Saad
 Desc:     Command-line application, which asynchronously executes jobs via bash/CLI (for BQ and others like Hive).
-Use:      TODO: SQL statements are expected in a separate file, semi-colon delimited.
+Use:      Commands to run are expected in a separate file, each command on a new line, semi-colon delimited with format:
+          category; number of times to run; command
 Params:   TODO: GCP / BigQuery project ID, SQL file.
 """
 
@@ -27,6 +28,7 @@ import time
 import uuid
 import subprocess
 import sys
+import datetime
 
 from googleapiclient import discovery
 from oauth2client.client import GoogleCredentials
@@ -55,20 +57,6 @@ def poll_job(bigquery, job):
         time.sleep(1)
 # [END poll_job]
 
-# [START build_statements]
-#TODO: old code
-def build_statements(filename):
-    # Open and read the file as a single buffer
-    fd = open(filename, 'r')
-    sqlFile = fd.read()
-    fd.close()
-
-    # all SQL commands (split on ';')
-    sqlCommands = (sqlFile[:-1] if sqlFile.endswith(';\n') else sqlFile).split(';\n')
-
-    return sqlCommands
-# [END build_statements]
-
 # [START loadCommands]
 def loadCommands(filename):
     print("hello load")
@@ -90,21 +78,36 @@ def loadCommands(filename):
         
 # [END loadCommands]
 
+# [START runCommands]
+def runCommands():
+    for i in len(commands):
+        commands[i].execute_x_times()
+    #TODO add some logic to handle running simples more regularly
+
+# [END runCommands]
+
 # [START run]
 def main(project_id, commandsFile, batch, num_retries, interval):
     loadCommands(commandsFile)
     
-    ''''c = Command('simple', 12, '/opt/google-cloud-sdk/bin/bq query --nosync "SELECT COUNT(*) FROM publicdata:samples.wikipedia"')
+    print("Time command running started: " + datetime.datetime.now())
+    runCommands()
+    print("Time command running ended: " + datetime.datetime.now())
+    
+    #TODO: poll all jobs and update their times
+    
+    
+    ''''
+    #Creating a single command
+    c = Command('simple', 12, '/opt/google-cloud-sdk/bin/bq query --nosync "SELECT COUNT(*) FROM publicdata:samples.wikipedia"')
     print(c.print_command_details())
     c.execute_x_times()
         #TODO: any way to have jobs continue to repeat if they are simple or if long jobs haven't completed?
     
-    print_jobs_run()   ''' 
-    
-    #TODO: poll all jobs and update their times
+    print_jobs_run()   '''
     
 # [END run]
-    
+   
      
 def print_jobs_run():
     """Prints the dict contains the jobs run, their status and timings"""
@@ -129,6 +132,7 @@ class Command:
     def print_command_details(self):
         print('Command with category[' + self.category + '] timesToExecute[' + str(self.timesToExecute) + '] \n-->executable[' + self.executable + '] ')
     
+    #TODO might want to pull the loop out of the command otherwise they don't happen in parallel..
     def execute_x_times(self):
         for i in range(0, self.timesToExecute):
             try:
