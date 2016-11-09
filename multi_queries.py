@@ -234,6 +234,7 @@ if __name__ == '__main__':
         formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument('project_id', nargs='?', help='Your Google Cloud project ID.', default=default_project_id)
     parser.add_argument('commandsFile', help='Delimited file containing the commands to run.')
+    #TODO remove unnecessary arguments
     parser.add_argument(
         '-b', '--batch', help='Run query in batch mode.', action='store_true')
     parser.add_argument(
