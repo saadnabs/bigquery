@@ -53,6 +53,15 @@ def loadCommands(filename):
             sys.exit()
         #c = Command(commandComponents[0], commandComponents[1], commandComponents[2])
         for i in range(0, int(commandComponents[1])):
+            
+            #if we are running BQ command 
+            if commandComponents[2].find("bq") != -1:
+                command = commandComponents[2]
+                bq_location = commandComponents[2].find("bq") + 1
+                bq_end = bq_location + len("bq")
+                command = command[:bq_end] + '--project_id ' + project_id + command[bq_end:]
+                print("new command: " + command)
+                
             #c = Command(commandComponents[0], commandComponents[2])
             #Store the commands in the list to run
             commands.append(commandComponents[2]);
@@ -92,7 +101,7 @@ def forkOutputs():
         out = out[:job_id_newline] #Remove the \ns before printing
         print(str(datetime.now()) + " " + str(out))
         
-        job_id_location = out.find(default_project_id) + len(default_project_id) + 1
+        job_id_location = out.find(project_id) + len(project_id) + 1
         job_id = out[job_id_location:]
         jb = JobResult(job_id)
         jobs_run.append(jb)
@@ -224,9 +233,12 @@ jobs_completed = [] #Used to store the job results of jobs that have been confir
 #jobs_run = {} #Used to store the IDs of all the jobs run and get their status and details
   
 # [START run]
-def main(project_id, commandsFile, batch, num_retries, interval):
+def main(proj_id, commandsFile, batch, num_retries, interval):
+    #Store the project_id global to be used in the script
+    global project_id
+    project_id = proj_id
+
     loadCommands(commandsFile)
-        
     print("*******************************************************")
     print(str(datetime.now()) + " -- Time command running started: ")
     commands_start_time = int(round(time.time() * 1000))
