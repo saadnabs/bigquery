@@ -23,6 +23,7 @@ information](https://developers.google.com/identity/protocols/application-defaul
 
 ## Running the samples
 
-1. Add the statements you want executed into a file that you pass into the command in (2), each separated by a new line break
+1. Add the statements you want executed into a file that you pass into the command in (2), with the following format:
+   - category; number of times to execute; shell/CLI command to execute
 
 2. python multi_queries.py ... ... {your-file-name}
