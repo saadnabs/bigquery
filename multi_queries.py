@@ -30,6 +30,7 @@ import subprocess
 import sys
 import datetime
 import json
+import csv
 
 from googleapiclient import discovery
 from oauth2client.client import GoogleCredentials
@@ -55,12 +56,14 @@ def loadCommands(filename):
             #c = Command(commandComponents[0], commandComponents[2])
             #Store the commands in the list to run
             commands.append(commandComponents[2]);
+            #TODO do something with the type of query
         
 # [END loadCommands]
 
 # [START forkProcesses]
 def forkProcesses():
 
+    #TODO break the starting of queries over a period of time
     #Attempting to get wait to work by not using shell=True
     for cmd in commands:
         #First the double quote to extract the SQL statement
@@ -144,6 +147,19 @@ def poll_jobs_run():
 
 # [START output_completed_jobs]
 def output_completed_jobs():
+    
+    output_filename = str(datetime.now()) + "-results.csv"
+    f = open(output_filename, 'wt')
+    try:
+        writer = csv.writer(f)
+        writer.writerow( ('Status', 'Duration', 'Bytes Processed', 'Start Time', 'End Time' , 'Job Id') )
+        for job in jobs_completed:
+            writer.writerow( (job.status, job.duration, human_readable_bytes(int(job.bytes_processed)), \
+                              date_time_from_milliseconds(job.start_time), \
+                              date_time_from_milliseconds(job.end_time), job.job_id) )
+    finally:
+        f.close()
+    
     for i in range(0, len(jobs_completed)):
         jobs_completed[i].print_jobresult_details()    
 # [END output_completed_jobs]
@@ -181,8 +197,8 @@ class JobResult:
         print('JobResult with job_id[' + self.job_id + ']')
     
     def print_jobresult_details(self):
-        print('JobResult with job_id[' + self.job_id + '] status[' + self.status + '] start_time[' + str(self.start_time) + 
-              '] end_time[' + str(self.end_time) + '] duration[' + str(self.duration) + '] bytes_processed[' + human_readable_bytes(int(self.bytes_processed)) + ']')  
+        print('JobResult with job_id[' + self.job_id + '] status[' + self.status + '] start_time[' + date_time_from_milliseconds(self.start_time) + 
+              '] end_time[' + date_time_from_milliseconds(self.end_time) + '] duration[' + str(self.duration) + '] bytes_processed[' + human_readable_bytes(int(self.bytes_processed)) + ']')  
 #End Class
 
 def human_readable_bytes(num, suffix='B'):
@@ -191,6 +207,10 @@ def human_readable_bytes(num, suffix='B'):
             return "%3.1f%s%s" % (num, unit, suffix)
         num /= 1024.0
     return "%.1f%s%s" % (num, 'Yi', suffix)  
+
+def date_time_from_milliseconds(ms):
+    s, ms = divmod(int(ms), 1000)
+    return '%s.%03d' % (time.strftime('%Y-%m-%d %H:%M:%S', time.gmtime(s)), ms)
 
 #Script defaults that can be set
 default_project_id="nsaad-demos"
