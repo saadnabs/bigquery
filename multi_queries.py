@@ -57,14 +57,13 @@ def loadCommands(filename):
             #if we are running BQ command 
             if commandComponents[2].find("bq") != -1:
                 command = commandComponents[2]
-                bq_location = commandComponents[2].find("bq") + 1
-                bq_end = bq_location + len("bq")
-                command = command[:bq_end] + '--project_id ' + project_id + command[bq_end:]
-                print("new command: " + command)
+                bq_location = commandComponents[2].find("bq")
+                bq_end = bq_location + len("bq") + 1 #include space in this
+                command = command[:bq_end] + '--project_id ' + project_id + " " + command[bq_end:]
                 
             #c = Command(commandComponents[0], commandComponents[2])
             #Store the commands in the list to run
-            commands.append(commandComponents[2]);
+            commands.append(command);
             #TODO do something with the type of query
         
 # [END loadCommands]
@@ -115,7 +114,7 @@ def poll_jobs_run():
         processes = []
         processes_outputs = []
         for jb in jobs_run:
-            command_args = ['bq', '--format', 'json', 'wait', jb.job_id, '1']
+            command_args = ['bq', '--project_id', project_id, '--format', 'json', 'wait', jb.job_id, '1']
             processes.append(subprocess.Popen(command_args, stdout=subprocess.PIPE, stderr=subprocess.PIPE))
         
         for p in processes:
