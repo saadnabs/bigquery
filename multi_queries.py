@@ -185,6 +185,7 @@ def wait_for_pollers():
 # [START output_completed_jobs]
 def output_completed_jobs():
     
+    #TODO move this into a /runs/results folder
     output_filename = output_file + "-results.csv"
     
     #TODO: check if there's a more elegant way to do an (append or write) file
@@ -230,6 +231,7 @@ def output_log(message, _print, log, level):
 
 # [START append_to_log(text)]
 def append_to_log(text):
+    #TODO: move this into a /runs/logs folder
     output_filename = output_file + "-output.log"
     
     #TODO: check if there's a more elegant way to do an (append or write) file
