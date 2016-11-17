@@ -31,6 +31,7 @@ import sys
 import datetime
 import json
 import csv
+#TODO if remove test, get rid of this import
 import random
 
 from googleapiclient import discovery
@@ -51,7 +52,7 @@ def load_commands(filename):
         
         commandComponents = (line[:-1] if line.endswith('\n') else line).split(';')
         if (len(commandComponents) != 3):
-            print("ERROR: The format of the file doesn't match the expected format, please follow the categoy;number;command format")
+            output_log("ERROR: The format of the file doesn't match the expected format, please follow the categoy;number;command format", true, true, 3)
             sys.exit()
         
         num_of_executions = int(commandComponents[1]) * multiplier
@@ -100,8 +101,8 @@ def run_jobs():
         else:
             command_args = cmd.split()
         
-        print("   |    ")
-        print("   |--> " + cmd)
+        output_log("   |    ", true, true, 1)
+        output_log("   |--> " + cmd, true, true, 1)
         
         #Run each command in a process
         p = subprocess.Popen(command_args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -109,7 +110,7 @@ def run_jobs():
         #Store the processes to check their output later
         processes.append(p)
         
-    print("\n")
+    output_log("\n", true, true, 1)
     
 def wait_for_processes_and_start_pollers():
     
@@ -141,10 +142,10 @@ def wait_for_processes_and_start_pollers():
                 jb.bash_duration = int(command_end_time) - int(commands_start_time)
                 jobs_run.append(jb)
                 
-                print(str_command_end_time + " " + str(out))
+                output_log(str_command_end_time + " " + str(out), true, true, 1)
                 processes.remove(p)
     
-    print("\nAwaiting " + str(len(polling_processes)) + " BigQuery jobs to complete")
+    output_log("\nAwaiting " + str(len(polling_processes)) + " BigQuery jobs to complete", true, true, 1)
     #TODO bring outputs back in here, and output stuff as we wait
 # [END forkProcesses]
 
@@ -158,7 +159,7 @@ def wait_for_pollers():
                 #If the process returns an output
                 if out != None: 
                     polling_processes.remove(p)
-                    print("  |--> waiting for " + str(len(polling_processes)) + " poller(s)")
+                    output_log("  |--> waiting for " + str(len(polling_processes)) + " poller(s)", true, true, 1)
                     
                     #TODO: This is BQ specific
                     #Process the JSON and look for the relevant information.
@@ -197,7 +198,7 @@ def output_completed_jobs():
                 f = open(output_filename, 'wt')
                 text = ('my', 'text', 'here')
             except IOError:
-                print("Can not open file to write, check the script's permissions in this directory")
+                output_log("Can not open file to write, check the script's permissions in this directory", true, true, 3)
                 f.close()
     
     try:
@@ -345,9 +346,10 @@ if __name__ == '__main__':
         formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument('commandsFile', help='Delimited file containing the commands to run.')
     parser.add_argument('project_id', help='Project ID to use.', default="nsaad-demos")
-    parser.add_argument('output_file', nargs="?", help='Name of the file to use to output the results.', default=str(datetime.now()))
+    parser.add_argument('output_file', nargs="?", help='Name of the file to use to output the log/results.', default=str(datetime.now()))
     parser.add_argument('multiplier', nargs="?", help='A multiplier to be used to increase the executes of the commands by that multipler.')
-
+    #TODO add argument flag for "no_console_output", when passed in, set output_to_console = None
+    
     args = parser.parse_args()
     global project_id, output_file, multiplier
     project_id = args.project_id
