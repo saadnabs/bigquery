@@ -111,6 +111,7 @@ def run_jobs():
     
 def wait_for_processes_and_start_pollers():
     
+    #FR: add in ability to only have X number of pollers spun up so that they don't exhaust a machine if too many jobs are running, have a pool and spin up more as needed
     #Check the status of the bash shell processes, and get their output
     while len(processes) > 0:
         for p in processes:
@@ -179,8 +180,22 @@ def wait_for_pollers():
 # [START output_completed_jobs]
 def output_completed_jobs():
     
-    output_filename = str(datetime.now()) + "-results.csv"
-    f = open(output_filename, 'wt')
+    output_filename = output_file + "-results.csv"
+    
+    #TODO: check if there's a more elegant way to do an (append or write) file
+    try:
+        f = open(output_filename, 'r')
+        f = open(output_filename, 'a')
+        text = ('another', 'line', 'here')
+    except IOError as detail:
+        if str(detail).find("No such file or directory"):
+            try:
+                f = open(output_filename, 'wt')
+                text = ('my', 'text', 'here')
+            except IOError:
+                print("Can not open file to write, check the script's permissions in this directory")
+                f.close()
+    
     try:
         writer = csv.writer(f)
         writer.writerow( ('Status', 'BQ Job Duration', 'Bash Job Duration', 'Bytes Processed', 'BQ Job Start Time', 'BQ Job End Time' , \
@@ -251,13 +266,11 @@ def human_readable_bytes(num, suffix='B'):
 
 #Script defaults that can be set
 commands_start_time = ""
-commands_end_time = ""
 commands = [] #Used to store the commands loaded from the file
-processes = [] #Used to store the processes launched in parallel to run all the commands
-processes_outputs = []
 jobs_run = [] #Used to store the job results of running jobs
 jobs_completed = [] #Used to store the job results of jobs that have been confirmed completed.
-polling_processes = []
+processes = [] #Used to store the processes launched in parallel to run all the commands
+polling_processes = [] #Used to store the processes running the pollers for each job
 #jobs_run = {} #Used to store the IDs of all the jobs run and get their status and details
   
 # [START run]
@@ -290,11 +303,14 @@ if __name__ == '__main__':
         formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument('commandsFile', help='Delimited file containing the commands to run.')
     parser.add_argument('project_id', help='Project ID to use.', default="nsaad-demos")
+    #TODO: is this nargs correct to make it optional?
+    parser.add_argument('output_file', nargs="?", help='Name of the file to use to output the results.', default=str(datetime.now()))
 
     args = parser.parse_args()
-    global project_id
+    global project_id, output_file
     project_id = args.project_id
-
+    output_file = args.output_file
+    
     main(
         args.commandsFile)
 # [END main]
