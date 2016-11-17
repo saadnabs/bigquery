@@ -21,6 +21,11 @@ information](https://developers.google.com/identity/protocols/application-defaul
 
         $ pip install -r requirements.txt
 
+5. TODO Install dependencies for psutil
+        git clone https://github.com/giampaolo/psutil/blob/master/INSTALL.rst
+        make install-pip
+        sudo pip install psutil
+
 ## Running the samples
 
 1. Add the statements you want executed into a file that you pass into the command in (2), with the following format:
