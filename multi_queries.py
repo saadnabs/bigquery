@@ -54,8 +54,10 @@ def load_commands(filename):
             print("ERROR: The format of the file doesn't match the expected format, please follow the categoy;number;command format")
             sys.exit()
         
+        num_of_executions = int(commandComponents[1]) * multiplier
+        
         #Add in duplicate commands up to the number of executions passed in the file 
-        for i in range(0, int(commandComponents[1])):
+        for i in range(0, num_of_executions):
             
             #if we are running BQ command 
             if commandComponents[2].find("bq") != -1:
@@ -112,6 +114,8 @@ def run_jobs():
 def wait_for_processes_and_start_pollers():
     
     #FR: add in ability to only have X number of pollers spun up so that they don't exhaust a machine if too many jobs are running, have a pool and spin up more as needed
+    #    or maybe this FR is about using multiprocessing to call the inside code via separate thread -- making sure those threads have access to: project_id, jobs_run
+    #    it would have to use a thread pool otherwise I'd have tons of threads spinning up like crazy  
     #Check the status of the bash shell processes, and get their output
     while len(processes) > 0:
         for p in processes:
@@ -212,6 +216,42 @@ def output_completed_jobs():
         jobs_completed[i].print_jobresult_details()    
 # [END output_completed_jobs]
 
+# [START output_log()]
+def output_log(message, _print, log, level):
+    if _print != NONE:
+        print(message)
+        
+    #TODO create enumarator _LOG
+    if log != NONE and level == _LOG.level: 
+        append_to_log(text)
+    
+# [END output_log()]
+
+# [START append_to_log(text)]
+def append_to_log(text):
+    output_filename = output_file + "-output.log"
+    
+    #TODO: check if there's a more elegant way to do an (append or write) file
+    try:
+        f = open(output_filename, 'r')
+        f = open(output_filename, 'a')
+    except IOError as detail:
+        if str(detail).find("No such file or directory"):
+            try:
+                f = open(output_filename, 'wt')
+            except IOError:
+                print("Can not open file to write, check the script's permissions in this directory")
+                f.close()
+    
+    try:
+        #TODO is this right, sys.writer just for normal text?, what method to right? or can f write directly?
+        writer = sys.writer(f)
+        writer.write( text )
+        
+    finally:
+        f.close()
+# [END append_to_log(text)]
+
 #Class
 class Command:
     """The command object to be used for loading the queries to be run"""
@@ -271,7 +311,9 @@ jobs_run = [] #Used to store the job results of running jobs
 jobs_completed = [] #Used to store the job results of jobs that have been confirmed completed.
 processes = [] #Used to store the processes launched in parallel to run all the commands
 polling_processes = [] #Used to store the processes running the pollers for each job
-#jobs_run = {} #Used to store the IDs of all the jobs run and get their status and details
+#TODO python enumarator?
+#Is there a python logging module?
+_LOG.level = {INFO:1, WARNING:2, ERROR:3}
   
 # [START run]
 def main(commandsFile):
@@ -303,13 +345,20 @@ if __name__ == '__main__':
         formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument('commandsFile', help='Delimited file containing the commands to run.')
     parser.add_argument('project_id', help='Project ID to use.', default="nsaad-demos")
-    #TODO: is this nargs correct to make it optional?
     parser.add_argument('output_file', nargs="?", help='Name of the file to use to output the results.', default=str(datetime.now()))
+    parser.add_argument('multiplier', nargs="?", help='A multiplier to be used to increase the executes of the commands by that multipler.')
 
     args = parser.parse_args()
-    global project_id, output_file
+    global project_id, output_file, multiplier
     project_id = args.project_id
     output_file = args.output_file
+    
+    #multiplier = args.multiplier ? args.multiplier : 1
+    #TODO find shorter version of this code
+    if (args.multiplier):
+        multipler = args.multiplier
+    else: 
+        multiplier = 1
     
     main(
         args.commandsFile)
