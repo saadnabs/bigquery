@@ -143,25 +143,6 @@ def wait_for_processes_and_start_pollers():
     #TODO bring outputs back in here, and output stuff as we wait
 # [END forkProcesses]
 
-# [START output_completed_jobs]
-def output_completed_jobs():
-    
-    output_filename = str(datetime.now()) + "-results.csv"
-    f = open(output_filename, 'wt')
-    try:
-        writer = csv.writer(f)
-        writer.writerow( ('Status', 'Duration', 'Bytes Processed', 'Start Time', 'End Time' , 'Job Id') )
-        for job in jobs_completed:
-            writer.writerow( (job.status, job.bq_duration, human_readable_bytes(int(job.bytes_processed)), \
-                              date_time_from_milliseconds(job.bq_start_time), \
-                              date_time_from_milliseconds(job.bq_end_time), job.job_id) )
-    finally:
-        f.close()
-    
-    for i in range(0, len(jobs_completed)):
-        jobs_completed[i].print_jobresult_details()    
-# [END output_completed_jobs]
-
 def wait_for_pollers():
     
     while len(polling_processes) > 0:
@@ -194,6 +175,27 @@ def wait_for_pollers():
                         
                         jobs_completed.append(jb)
                         if jb in jobs_run: jobs_run.remove(jb)
+
+# [START output_completed_jobs]
+def output_completed_jobs():
+    
+    output_filename = str(datetime.now()) + "-results.csv"
+    f = open(output_filename, 'wt')
+    try:
+        writer = csv.writer(f)
+        writer.writerow( ('Status', 'BQ Job Duration', 'Bash Job Duration', 'Bytes Processed', 'BQ Job Start Time', 'BQ Job End Time' , \
+                          'Bash Job Start Time', 'Bash Job End Time', 'Job Id') )
+        for job in jobs_completed:
+            writer.writerow( (job.status, job.bq_duration, job.bash_duration, human_readable_bytes(int(job.bytes_processed)), \
+                              date_time_from_milliseconds(job.bq_start_time), date_time_from_milliseconds(job.bq_end_time), \
+                              date_time_from_milliseconds(job.bash_start_time), date_time_from_milliseconds(job.bash_end_time), \
+                              job.job_id) )
+    finally:
+        f.close()
+    
+    for i in range(0, len(jobs_completed)):
+        jobs_completed[i].print_jobresult_details()    
+# [END output_completed_jobs]
 
 #Class
 class Command:
@@ -229,8 +231,11 @@ class JobResult:
         print('JobResult with job_id[' + self.job_id + ']')
     
     def print_jobresult_details(self):
-        print('JobResult with job_id[' + self.job_id + '] status[' + self.status + '] start_time[' + date_time_from_milliseconds(self.bq_start_time) + 
-              '] end_time[' + date_time_from_milliseconds(self.bq_end_time) + '] duration[' + str(self.bq_duration) + '] bytes_processed[' + human_readable_bytes(int(self.bytes_processed)) + ']')  
+        print('JobResult with job_id[' + self.job_id + ']')
+        print( '  |--> status[' + self.status + ']' )
+        print( '  |--> bq_duration[' + str(self.bq_duration) + '] bq_start_time[' + date_time_from_milliseconds(self.bq_start_time) + '] bq_end_time[' + date_time_from_milliseconds(self.bq_end_time) + ']')
+        print( '  |--> bash_duration[' + str(self.bash_duration) + '] bash_start_time[' + date_time_from_milliseconds(self.bash_start_time) + '] bash_end_time[' + date_time_from_milliseconds(self.bash_end_time) + ']')
+        print ( ' |--> bytes_processed[' + human_readable_bytes(int(self.bytes_processed)) + ']')  
 #End Class
 
 def date_time_from_milliseconds(ms):
