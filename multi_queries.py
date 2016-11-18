@@ -33,6 +33,7 @@ import json
 import csv
 #TODO if remove test, get rid of this import
 import random
+import logging
 
 from googleapiclient import discovery
 from oauth2client.client import GoogleCredentials
@@ -52,7 +53,7 @@ def load_commands(filename):
         
         commandComponents = (line[:-1] if line.endswith('\n') else line).split(';')
         if (len(commandComponents) != 3):
-            output_log("ERROR: The format of the file doesn't match the expected format, please follow the categoy;number;command format", true, true, 3)
+            output_log("ERROR: The format of the file doesn't match the expected format, please follow the categoy;number;command format", "true", 40)
             sys.exit()
         
         num_of_executions = int(commandComponents[1]) * multiplier
@@ -101,8 +102,8 @@ def run_jobs():
         else:
             command_args = cmd.split()
         
-        output_log("   |    ", true, true, 1)
-        output_log("   |--> " + cmd, true, true, 1)
+        output_log("   |    ", "true", 10)
+        output_log("   |--> " + cmd, "true", 10)
         
         #Run each command in a process
         p = subprocess.Popen(command_args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -110,7 +111,7 @@ def run_jobs():
         #Store the processes to check their output later
         processes.append(p)
         
-    output_log("\n", true, true, 1)
+    output_log("\n", "true", 10)
     
 def wait_for_processes_and_start_pollers():
     
@@ -142,10 +143,10 @@ def wait_for_processes_and_start_pollers():
                 jb.bash_duration = int(command_end_time) - int(commands_start_time)
                 jobs_run.append(jb)
                 
-                output_log(str_command_end_time + " " + str(out), true, true, 1)
+                output_log(str_command_end_time + " " + str(out), "true", 10)
                 processes.remove(p)
     
-    output_log("\nAwaiting " + str(len(polling_processes)) + " BigQuery jobs to complete", true, true, 1)
+    output_log("\nAwaiting " + str(len(polling_processes)) + " BigQuery jobs to complete", "true", 10)
     #TODO bring outputs back in here, and output stuff as we wait
 # [END forkProcesses]
 
@@ -159,7 +160,7 @@ def wait_for_pollers():
                 #If the process returns an output
                 if out != None: 
                     polling_processes.remove(p)
-                    output_log("  |--> waiting for " + str(len(polling_processes)) + " poller(s)", true, true, 1)
+                    output_log("  |--> waiting for " + str(len(polling_processes)) + " poller(s)", "true", 10)
                     
                     #TODO: This is BQ specific
                     #Process the JSON and look for the relevant information.
@@ -171,7 +172,14 @@ def wait_for_pollers():
                         job_reference = parsedjson['jobReference']
                         job_id = job_reference['jobId']
                         
-                        jb = JobResult(job_id)
+                        #Create a new jobresult with the ID
+                        jb = JobResult(job_id);
+                        
+                        #But check for it in the jobs_running
+                        for job in jobs_run:
+                            if job.job_id == job_id:
+                                jb = job
+                                
                         jb.status = state
                         statistics = parsedjson['statistics']
                         jb.bq_start_time = statistics['startTime']
@@ -199,7 +207,7 @@ def output_completed_jobs():
                 f = open(output_filename, 'wt')
                 text = ('my', 'text', 'here')
             except IOError:
-                output_log("Can not open file to write, check the script's permissions in this directory", true, true, 3)
+                output_log("Can not open file to write, check the script's permissions in this directory", "true", 40)
                 f.close()
     
     try:
@@ -219,13 +227,11 @@ def output_completed_jobs():
 # [END output_completed_jobs]
 
 # [START output_log()]
-def output_log(message, _print, log, level):
-    if _print != NONE:
+def output_log(message, _print, level):
+    if _print is not None:
         print(message)
         
-    #TODO create enumarator _LOG
-    if log != NONE and level == _LOG.level: 
-        append_to_log(text)
+    logging.log(level, message)
     
 # [END output_log()]
 
@@ -293,7 +299,7 @@ class JobResult:
         print( '  |--> status[' + self.status + ']' )
         print( '  |--> bq_duration[' + str(self.bq_duration) + '] bq_start_time[' + date_time_from_milliseconds(self.bq_start_time) + '] bq_end_time[' + date_time_from_milliseconds(self.bq_end_time) + ']')
         print( '  |--> bash_duration[' + str(self.bash_duration) + '] bash_start_time[' + date_time_from_milliseconds(self.bash_start_time) + '] bash_end_time[' + date_time_from_milliseconds(self.bash_end_time) + ']')
-        print ( ' |--> bytes_processed[' + human_readable_bytes(int(self.bytes_processed)) + ']')  
+        print ('  |--> bytes_processed[' + human_readable_bytes(int(self.bytes_processed)) + ']')  
 #End Class
 
 def date_time_from_milliseconds(ms):
@@ -314,9 +320,7 @@ jobs_run = [] #Used to store the job results of running jobs
 jobs_completed = [] #Used to store the job results of jobs that have been confirmed completed.
 processes = [] #Used to store the processes launched in parallel to run all the commands
 polling_processes = [] #Used to store the processes running the pollers for each job
-#TODO python enumarator?
-#Is there a python logging module?
-_LOG.level = {INFO:1, WARNING:2, ERROR:3}
+
   
 # [START run]
 def main(commandsFile):
@@ -349,7 +353,7 @@ if __name__ == '__main__':
     parser.add_argument('commandsFile', help='Delimited file containing the commands to run.')
     parser.add_argument('project_id', help='Project ID to use.', default="nsaad-demos")
     parser.add_argument('output_file', nargs="?", help='Name of the file to use to output the log/results.', default=str(datetime.now()))
-    parser.add_argument('multiplier', nargs="?", help='A multiplier to be used to increase the executes of the commands by that multipler.')
+    parser.add_argument('multiplier', nargs="?", help='A multiplier to be used to increase the executes of the commands by that multipller.')
     #TODO add argument flag for "no_console_output", when passed in, set output_to_console = None
     
     args = parser.parse_args()
@@ -357,6 +361,8 @@ if __name__ == '__main__':
     project_id = args.project_id
     output_file = args.output_file
     
+    logging.basicConfig(filename=output_file+'output.log',level=logging.DEBUG)   
+     
     #multiplier = args.multiplier ? args.multiplier : 1
     #TODO find shorter version of this code
     if (args.multiplier):
