@@ -80,7 +80,7 @@ def load_commands(filename):
         
 # [END load_commands]
 
-# [START forkProcesses]
+# [START run_jobs]
 def run_jobs():
 
     #TODO break the starting of queries over a period of time
@@ -91,16 +91,7 @@ def run_jobs():
         cmd = command.executable
         #If we have a quote separating out a SQL statement in BQ
         #TODO: BQ specific, deal with other tech checks here
-        if cmd.find('"') != -1:
-            #First the double quote to extract the SQL statement
-            first_quote = cmd.find('"') + 1
-            statement = cmd[first_quote:-1]
-        
-            #Break up the command options into list
-            command_args = cmd[:first_quote - 1].split()
-            command_args.append(statement)
-        else:
-            command_args = cmd.split()
+        command_args = extract_quoted_sql(cmd)
         
         output_log("   |    ", "true", 10)
         output_log("   |--> " + cmd, "true", 10)
@@ -112,6 +103,23 @@ def run_jobs():
         processes.append(p)
         
     output_log("\n", "true", 10)
+# [END run_jobs]
+    
+# [START extract_quoted_sql]
+def extract_quoted_sql(cmd):
+    if cmd.find('"') != -1:
+        #First the double quote to extract the SQL statement
+        first_quote = cmd.find('"') + 1
+        statement = cmd[first_quote:-1]
+    
+        #Break up the command options into list
+        command_args = cmd[:first_quote - 1].split()
+        command_args.append(statement)
+    else:
+        command_args = cmd.split()
+    
+    return command_args
+# [END extract_quoted_sql]
     
 def wait_for_processes_and_start_pollers():
     
@@ -149,7 +157,7 @@ def wait_for_processes_and_start_pollers():
     output_log(" ", "true", 10)
     output_log("Awaiting " + str(len(polling_processes)) + " BigQuery jobs to complete", "true", 10)
     #TODO bring outputs back in here, and output stuff as we wait
-# [END forkProcesses]
+
 
 def wait_for_pollers():
     
@@ -188,9 +196,29 @@ def wait_for_pollers():
                         jb.bq_duration = int(jb.bq_end_time) - int(jb.bq_start_time)
                         jb.bytes_processed = statistics['totalBytesProcessed']
                         
+                        #TODO get query from JSON - this is probably wrong
+                        #TODO store sample JSON from a completed job so I have it when working offline
+                        jb.query_executed = statistics['query']
+                        #TODO test, check if this comes out right
+                        print("jb.query_executed  " + jb.query_executed)
+                        jb.category = get_query_category(jb.query_executed)
+                        #TODO test, check if this comes out right
+                        print("jb.category " + jb.category)
+                        
+                        
                         jobs_completed.append(jb)
                         if jb in jobs_run: jobs_run.remove(jb)
 
+# [START get_query_category(query)]
+def get_query_category(query):
+    for c in commands:
+        cq = extract_quoted_sql(c.executable)
+        if cq == query:
+            return c.category
+    
+    print("somehow non of the loaded commands match the executed query here")
+# [END get_query_category(query)]    
+    
 # [START output_completed_jobs]
 def output_completed_jobs():
     
@@ -221,13 +249,14 @@ def output_completed_jobs():
         
         if(not file_exists):
             writer.writerow( ('Status', 'BQ Job Duration', 'Bash Job Duration', 'Bytes Processed', 'BQ Job Start Time', 'BQ Job End Time' , \
-                          'Bash Job Start Time', 'Bash Job End Time', 'Job Id') )
+                          'Bash Job Start Time', 'Bash Job End Time', 'Category', 'Job Id') )
         
         for job in jobs_completed:
             writer.writerow( (job.status, job.bq_duration, job.bash_duration, human_readable_bytes(int(job.bytes_processed)), \
                           date_time_from_milliseconds(job.bq_start_time), date_time_from_milliseconds(job.bq_end_time), \
                           date_time_from_milliseconds(job.bash_start_time), date_time_from_milliseconds(job.bash_end_time), \
-                          job.job_id) )
+                          job.category, job.job_id) )
+            #TODO add category to job result
     finally:
         f.close()
     
@@ -296,6 +325,8 @@ class JobResult:
     bash_end_time = ""
     bash_duration = ""
     bytes_processed = ""
+    category = ""
+    query_executed = ""
     
     def __init__(self, job_id):
         self.job_id = job_id
@@ -308,7 +339,7 @@ class JobResult:
         print( '  |--> status[' + self.status + ']' )
         print( '  |--> bq_duration[' + str(self.bq_duration) + '] bq_start_time[' + date_time_from_milliseconds(self.bq_start_time) + '] bq_end_time[' + date_time_from_milliseconds(self.bq_end_time) + ']')
         print( '  |--> bash_duration[' + str(self.bash_duration) + '] bash_start_time[' + date_time_from_milliseconds(self.bash_start_time) + '] bash_end_time[' + date_time_from_milliseconds(self.bash_end_time) + ']')
-        print ('  |--> bytes_processed[' + human_readable_bytes(int(self.bytes_processed)) + ']')  
+        print ('  |--> bytes_processed[' + human_readable_bytes(int(self.bytes_processed)) + '] category[' + self.category + ']')  
 #End Class
 
 def date_time_from_milliseconds(ms):
@@ -366,6 +397,7 @@ if __name__ == '__main__':
     #TODO add argument flag for "no_console_output", when passed in, set output_to_console = None
     
     args = parser.parse_args()
+    
     global project_id, output_file, multiplier
     project_id = args.project_id
     output_file = args.output_file
