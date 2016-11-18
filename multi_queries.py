@@ -56,7 +56,7 @@ def load_commands(filename):
             output_log("ERROR: The format of the file doesn't match the expected format, please follow the categoy;number;command format", "true", 40)
             sys.exit()
         
-        num_of_executions = int(commandComponents[1]) * multiplier
+        num_of_executions = int(commandComponents[1]) * int(multiplier)
         
         #Add in duplicate commands up to the number of executions passed in the file 
         for i in range(0, num_of_executions):
@@ -377,7 +377,7 @@ if __name__ == '__main__':
     #multiplier = args.multiplier ? args.multiplier : 1
     #TODO find shorter version of this code
     if (args.multiplier):
-        multipler = args.multiplier
+        multiplier = args.multiplier
     else: 
         multiplier = 1
     
