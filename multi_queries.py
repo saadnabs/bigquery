@@ -23,14 +23,14 @@ Params:   GCP / BigQuery project ID, file containing commands to run
 """
 
 import argparse
+import csv
+import datetime
 import json
+import os
 import time
 import uuid
 import subprocess
 import sys
-import datetime
-import json
-import csv
 #TODO if remove test, get rid of this import
 import random
 import logging
@@ -193,8 +193,13 @@ def wait_for_pollers():
 # [START output_completed_jobs]
 def output_completed_jobs():
     
-    #TODO move this into a /runs/results folder
+    result_path = path + "results/" 
+    
     output_filename = output_file + "-results.csv"
+    output_filename = os.path.join(result_path, output_filename)
+    
+    if not os.path.exists(result_path):
+        os.makedirs(result_path)
     
     #TODO: check if there's a more elegant way to do an (append or write) file
     try:
@@ -320,7 +325,7 @@ jobs_run = [] #Used to store the job results of running jobs
 jobs_completed = [] #Used to store the job results of jobs that have been confirmed completed.
 processes = [] #Used to store the processes launched in parallel to run all the commands
 polling_processes = [] #Used to store the processes running the pollers for each job
-
+path="runs/"
   
 # [START run]
 def main(commandsFile):
@@ -352,7 +357,7 @@ if __name__ == '__main__':
         formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument('commandsFile', help='Delimited file containing the commands to run.')
     parser.add_argument('project_id', help='Project ID to use.', default="nsaad-demos")
-    parser.add_argument('output_file', nargs="?", help='Name of the file to use to output the log/results.', default=str(datetime.now()))
+    parser.add_argument('output_file', nargs="?", help='Name of the file to use to output the log/results.', default=datetime.now().strftime("%Y-%m-%d-%H-%M"))
     parser.add_argument('multiplier', nargs="?", help='A multiplier to be used to increase the executes of the commands by that multipller.')
     #TODO add argument flag for "no_console_output", when passed in, set output_to_console = None
     
@@ -361,7 +366,13 @@ if __name__ == '__main__':
     project_id = args.project_id
     output_file = args.output_file
     
-    logging.basicConfig(filename=output_file+'output.log',level=logging.DEBUG)   
+    log_path = path + "logs/" 
+    output_filename = os.path.join(log_path, output_file)
+    
+    if not os.path.exists(log_path):
+        os.makedirs(log_path)
+    
+    logging.basicConfig(filename=output_filename + '=output.log', level=logging. DEBUG)   
      
     #multiplier = args.multiplier ? args.multiplier : 1
     #TODO find shorter version of this code
