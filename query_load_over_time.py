@@ -87,8 +87,8 @@ def main(commands_file):
             print("At " + str(time_counter) + " second(s) hit ramp up cycle " + str((time_counter / ramp_up_period) + 1) + " setting multiplier to " + str(int(m)))
             
             #TODO, don't print actually call the code
-            #subprocess.call(["python","multi_queries.py", commands_file, project_id, output_file, multiplier])
-            print('subprocess.call(["python","multi_queries.py", ' + commands_file + ', ' + project_id + ', ' + output_file + ', ' + str(int(m)) + '])')
+            subprocess.call(["python","multi_queries.py", commands_file, project_id, output_file, str(m)])
+            #print('subprocess.call(["python","multi_queries.py", ' + commands_file + ', ' + project_id + ', ' + output_file + ', ' + str(int(m)) + '])')
             
             #Increment the multiplier by one
             m = increase_multiplier(m)

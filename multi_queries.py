@@ -146,7 +146,8 @@ def wait_for_processes_and_start_pollers():
                 output_log(str_command_end_time + " " + str(out), "true", 10)
                 processes.remove(p)
     
-    output_log("\nAwaiting " + str(len(polling_processes)) + " BigQuery jobs to complete", "true", 10)
+    output_log(" ", "true", 10)
+    output_log("Awaiting " + str(len(polling_processes)) + " BigQuery jobs to complete", "true", 10)
     #TODO bring outputs back in here, and output stuff as we wait
 # [END forkProcesses]
 
@@ -201,29 +202,32 @@ def output_completed_jobs():
     if not os.path.exists(result_path):
         os.makedirs(result_path)
     
+    file_exists = False
     #TODO: check if there's a more elegant way to do an (append or write) file
     try:
         f = open(output_filename, 'r')
         f = open(output_filename, 'a')
-        text = ('another', 'line', 'here')
+        file_exists = True 
     except IOError as detail:
         if str(detail).find("No such file or directory"):
             try:
                 f = open(output_filename, 'wt')
-                text = ('my', 'text', 'here')
             except IOError:
                 output_log("Can not open file to write, check the script's permissions in this directory", "true", 40)
                 f.close()
     
     try:
         writer = csv.writer(f)
-        writer.writerow( ('Status', 'BQ Job Duration', 'Bash Job Duration', 'Bytes Processed', 'BQ Job Start Time', 'BQ Job End Time' , \
+        
+        if(not file_exists):
+            writer.writerow( ('Status', 'BQ Job Duration', 'Bash Job Duration', 'Bytes Processed', 'BQ Job Start Time', 'BQ Job End Time' , \
                           'Bash Job Start Time', 'Bash Job End Time', 'Job Id') )
+        
         for job in jobs_completed:
             writer.writerow( (job.status, job.bq_duration, job.bash_duration, human_readable_bytes(int(job.bytes_processed)), \
-                              date_time_from_milliseconds(job.bq_start_time), date_time_from_milliseconds(job.bq_end_time), \
-                              date_time_from_milliseconds(job.bash_start_time), date_time_from_milliseconds(job.bash_end_time), \
-                              job.job_id) )
+                          date_time_from_milliseconds(job.bq_start_time), date_time_from_milliseconds(job.bq_end_time), \
+                          date_time_from_milliseconds(job.bash_start_time), date_time_from_milliseconds(job.bash_end_time), \
+                          job.job_id) )
     finally:
         f.close()
     
@@ -372,7 +376,7 @@ if __name__ == '__main__':
     if not os.path.exists(log_path):
         os.makedirs(log_path)
     
-    logging.basicConfig(filename=output_filename + '=output.log', level=logging. DEBUG)   
+    logging.basicConfig(filename=output_filename + '-output.log', level=logging. DEBUG)   
      
     #multiplier = args.multiplier ? args.multiplier : 1
     #TODO find shorter version of this code
