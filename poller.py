@@ -45,7 +45,6 @@ from time import sleep
 # [START poll_running_job] 
 #TODO get rid of test version
 def poll_running_test_job(job_id, project_id):
-    #TODO BQ specific polling
     """Polls the job running, and returns the status and statistics """
     
     status = ""
@@ -57,7 +56,7 @@ def poll_running_test_job(job_id, project_id):
 # [END poll_running_job]
 
 def poll_running_bq_job(job_id, project_id):
-    #TODO BQ specific polling
+    #TODO BQ specific, polling but might be ok if i have another function for hive or other
     """Polls the job running, and returns the status and statistics """
     
     status = ""

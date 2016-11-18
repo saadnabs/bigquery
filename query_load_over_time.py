@@ -81,13 +81,16 @@ def main(commands_file):
     while int(time_counter) < int(time_period):
         #print("time_counter " + str(time_counter) + "  time_period " + str(time_period))
         
-        #TODO is this how you do modulus in Python?
         if (time_counter % ramp_up_period) == 0:
             #print("hit ramp up cycle number [" + str((time_counter / ramp_up_period) + 1) + "]")
             print("At " + str(time_counter) + " second(s) hit ramp up cycle " + str((time_counter / ramp_up_period) + 1) + " setting multiplier to " + str(int(m)))
             
-            #TODO, don't print actually call the code
+            #TODO test, don't block on call... need to do it async and move on... otherwise need to create new processes here too with popen.. or threadpool
+            #TODO test, what happens to output here?
+            #p = subprocess.Popen(["python","multi_queries.py", commands_file, project_id, output_file, str(m)], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             subprocess.call(["python","multi_queries.py", commands_file, project_id, output_file, str(m)])
+            
+            #For testing initially
             #print('subprocess.call(["python","multi_queries.py", ' + commands_file + ', ' + project_id + ', ' + output_file + ', ' + str(int(m)) + '])')
             
             #Increment the multiplier by one
@@ -117,7 +120,8 @@ if __name__ == '__main__':
     #TODO: implement the different multiplier options and decide if I want to do exponential and if that makes sense
     parser.add_argument('-m', '--multiplier', help='Define how you want the multiplier to work, valid options are: increment (+1), step2 (+2), exponential(2^)\ndefault is set to incremental\nany incorrect input will be defaulted to incremental', default="incremental")
     parser.add_argument('-mc', '--multiplier-cap', help='Define a cap for how high the multiplier for the number of queries to run can go, default is set to 10', default=10)
-                                                    #TODO format the date with less milliseconds and no spaces
+                                                    
+                                                    #TODO test, I think this is sorted -  format the date with less milliseconds and no spaces
     parser.add_argument('-o', '--output-file', help='Name of the file to use to output the log/results.', default=datetime.now().strftime("%Y-%m-%d-%H-%M"))
     #TODO change some arguments to flag for "no_console_output", multiplier cap (use 5 as default), multiplier (use increment as default), ramp_up_period (use 10 as default)
 
@@ -145,5 +149,5 @@ if __name__ == '__main__':
         args.commands_file)
 # [END main]
 
-#TODO, any way to change the multiplier to deal with categories too????
+#TODO FR, any way to change the multiplier to deal with categories too????
 #Or have multiple files that I iterate through with one command each , but then I'd be calling multi_queries in parallel from this script

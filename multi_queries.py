@@ -76,7 +76,6 @@ def load_commands(filename):
             #Store the commands in the list to run
             commands.append(c);
             com_id += 1
-            #TODO add, do something with the category of query
         
 # [END load_commands]
 
