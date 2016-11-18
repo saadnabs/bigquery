@@ -31,7 +31,7 @@ import time
 import uuid
 import subprocess
 import sys
-#TODO if remove test, get rid of this import
+#TODO remove, when getting rid of test, get rid of this import
 import random
 import logging
 
@@ -76,21 +76,18 @@ def load_commands(filename):
             #Store the commands in the list to run
             commands.append(c);
             com_id += 1
-            #TODO do something with the type of query
+            #TODO add, do something with the category of query
         
 # [END load_commands]
 
 # [START run_jobs]
 def run_jobs():
 
-    #TODO break the starting of queries over a period of time
     #Iterate through all the commands
     for command in commands:
         
         #Split the command appropriately for Popen
         cmd = command.executable
-        #If we have a quote separating out a SQL statement in BQ
-        #TODO: BQ specific, deal with other tech checks here
         command_args = extract_quoted_sql(cmd)
         
         output_log("   |    ", "true", 10)
@@ -107,6 +104,10 @@ def run_jobs():
     
 # [START extract_quoted_sql]
 def extract_quoted_sql(cmd):
+    
+    #If we have a quote separating out a SQL statement in BQ
+    #TODO BQ specific, or what does a hive call look like? deal with other tech checks here
+        #TODO online, check kenneth email with US folks about hive CLI
     if cmd.find('"') != -1:
         #First the double quote to extract the SQL statement
         first_quote = cmd.find('"') + 1
@@ -121,6 +122,7 @@ def extract_quoted_sql(cmd):
     return command_args
 # [END extract_quoted_sql]
     
+# [START wait_for_processes_and_start_pollers()]
 def wait_for_processes_and_start_pollers():
     
     #FR: add in ability to only have X number of pollers spun up so that they don't exhaust a machine if too many jobs are running, have a pool and spin up more as needed
@@ -135,13 +137,13 @@ def wait_for_processes_and_start_pollers():
                 
                 command_end_time = int(round(time.time() * 1000)) 
                 str_command_end_time = str(datetime.now())
-                #TODO: project ID is BQ specific
+                #TODO BQ specific project, ID...
                 job_id_newline = out.find("\n")
                 out = out[:job_id_newline] #Remove the \ns before printing               
                 job_id_location = out.find(project_id) + len(project_id) + 1
                 job_id = out[job_id_location:]
                 
-                #TODO: BQ specific, pass in the correct tech in here
+                #TODO BQ specific, pass in the correct tech in here
                 polling_processes.append(subprocess.Popen(["python", "poller.py", str(job_id), "bq"], stdout=subprocess.PIPE, stderr=subprocess.PIPE))
                 
                 #Create a JobResult and start filling in the info
@@ -156,9 +158,9 @@ def wait_for_processes_and_start_pollers():
     
     output_log(" ", "true", 10)
     output_log("Awaiting " + str(len(polling_processes)) + " BigQuery jobs to complete", "true", 10)
-    #TODO bring outputs back in here, and output stuff as we wait
+# [END wait_for_processes_and_start_pollers()]
 
-
+# [START wait_for_pollers()]
 def wait_for_pollers():
     
     while len(polling_processes) > 0:
@@ -171,7 +173,7 @@ def wait_for_pollers():
                     polling_processes.remove(p)
                     output_log("  |--> waiting for " + str(len(polling_processes)) + " poller(s)", "true", 10)
                     
-                    #TODO: This is BQ specific
+                    #TODO BQ specific, response would be different
                     #Process the JSON and look for the relevant information.
                     parsedjson = json.loads(out)
                     status = parsedjson['status']
@@ -196,8 +198,8 @@ def wait_for_pollers():
                         jb.bq_duration = int(jb.bq_end_time) - int(jb.bq_start_time)
                         jb.bytes_processed = statistics['totalBytesProcessed']
                         
-                        #TODO get query from JSON - this is probably wrong
-                        #TODO store sample JSON from a completed job so I have it when working offline
+                        #TODO online, get query from JSON - this is probably wrong
+                        #TODO online, store sample JSON from a completed job so I have it when working offline
                         jb.query_executed = statistics['query']
                         #TODO test, check if this comes out right
                         print("jb.query_executed  " + jb.query_executed)
@@ -208,6 +210,7 @@ def wait_for_pollers():
                         
                         jobs_completed.append(jb)
                         if jb in jobs_run: jobs_run.remove(jb)
+# [END wait_for_pollers()]
 
 # [START get_query_category(query)]
 def get_query_category(query):
@@ -216,7 +219,7 @@ def get_query_category(query):
         if cq == query:
             return c.category
     
-    print("somehow non of the loaded commands match the executed query here")
+    output_log("Somehow non of the loaded commands match the executed query here", None, 30)
 # [END get_query_category(query)]    
     
 # [START output_completed_jobs]
@@ -231,7 +234,7 @@ def output_completed_jobs():
         os.makedirs(result_path)
     
     file_exists = False
-    #TODO: check if there's a more elegant way to do an (append or write) file
+    #TODO online check if there's a more elegant way to do an (append or write) file
     try:
         f = open(output_filename, 'r')
         f = open(output_filename, 'a')
@@ -249,14 +252,14 @@ def output_completed_jobs():
         
         if(not file_exists):
             writer.writerow( ('Status', 'BQ Job Duration', 'Bash Job Duration', 'Bytes Processed', 'BQ Job Start Time', 'BQ Job End Time' , \
-                          'Bash Job Start Time', 'Bash Job End Time', 'Category', 'Job Id') )
+                          'Bash Job Start Time', 'Bash Job End Time', 'Category', 'Query', 'Job Id') )
         
         for job in jobs_completed:
             writer.writerow( (job.status, job.bq_duration, job.bash_duration, human_readable_bytes(int(job.bytes_processed)), \
                           date_time_from_milliseconds(job.bq_start_time), date_time_from_milliseconds(job.bq_end_time), \
                           date_time_from_milliseconds(job.bash_start_time), date_time_from_milliseconds(job.bash_end_time), \
-                          job.category, job.job_id) )
-            #TODO add category to job result
+                          job.category, job.query_executed, job.job_id) )
+            #TODO test, category/query in job result
     finally:
         f.close()
     
@@ -266,38 +269,12 @@ def output_completed_jobs():
 
 # [START output_log()]
 def output_log(message, _print, level):
-    if _print is not None:
+    if _print is not None and no_console_output is None:
         print(message)
         
     logging.log(level, message)
     
 # [END output_log()]
-
-# [START append_to_log(text)]
-def append_to_log(text):
-    #TODO: move this into a /runs/logs folder
-    output_filename = output_file + "-output.log"
-    
-    #TODO: check if there's a more elegant way to do an (append or write) file
-    try:
-        f = open(output_filename, 'r')
-        f = open(output_filename, 'a')
-    except IOError as detail:
-        if str(detail).find("No such file or directory"):
-            try:
-                f = open(output_filename, 'wt')
-            except IOError:
-                print("Can not open file to write, check the script's permissions in this directory")
-                f.close()
-    
-    try:
-        #TODO is this right, sys.writer just for normal text?, what method to right? or can f write directly?
-        writer = sys.writer(f)
-        writer.write( text )
-        
-    finally:
-        f.close()
-# [END append_to_log(text)]
 
 #Class
 class Command:
@@ -339,7 +316,8 @@ class JobResult:
         print( '  |--> status[' + self.status + ']' )
         print( '  |--> bq_duration[' + str(self.bq_duration) + '] bq_start_time[' + date_time_from_milliseconds(self.bq_start_time) + '] bq_end_time[' + date_time_from_milliseconds(self.bq_end_time) + ']')
         print( '  |--> bash_duration[' + str(self.bash_duration) + '] bash_start_time[' + date_time_from_milliseconds(self.bash_start_time) + '] bash_end_time[' + date_time_from_milliseconds(self.bash_end_time) + ']')
-        print ('  |--> bytes_processed[' + human_readable_bytes(int(self.bytes_processed)) + '] category[' + self.category + ']')  
+        print ('  |--> bytes_processed[' + human_readable_bytes(int(self.bytes_processed)) + '] category[' + self.category + ']')
+        print ('  |--> query[' + self.query_executed + ']')
 #End Class
 
 def date_time_from_milliseconds(ms):
@@ -366,8 +344,9 @@ path="runs/"
 def main(commandsFile):
     load_commands(commandsFile)
 
-    print("*******************************************************")
-    print(str(datetime.now()) + " -- Starting parallel bash scripts: ")
+    #TODO confirm outputs still working
+    output_log("*******************************************************", "true", 10)
+    output_log(str(datetime.now()) + " -- Starting parallel bash scripts: ", "true", 10)
             
     #Get the start time of all commands
     global commands_start_time
@@ -377,11 +356,11 @@ def main(commandsFile):
     wait_for_processes_and_start_pollers()
     wait_for_pollers()
     
-    print("\n*******************************************************")
-    print(str(datetime.now()) + " -- Job Results")
-    print("*******************************************************\n")
+    output_log("\n*******************************************************", "true", 10)
+    output_log(str(datetime.now()) + " -- Job Results", "true", 10)
+    output_log("*******************************************************\n", "true", 10)
     output_completed_jobs();
-    print("\n*******************************************************\n")
+    output_log("\n*******************************************************\n", "true", 10)
 
 # [END run]   
   
@@ -393,12 +372,13 @@ if __name__ == '__main__':
     parser.add_argument('commandsFile', help='Delimited file containing the commands to run.')
     parser.add_argument('project_id', help='Project ID to use.', default="nsaad-demos")
     parser.add_argument('output_file', nargs="?", help='Name of the file to use to output the log/results.', default=datetime.now().strftime("%Y-%m-%d-%H-%M"))
-    parser.add_argument('multiplier', nargs="?", help='A multiplier to be used to increase the executes of the commands by that multipller.')
-    #TODO add argument flag for "no_console_output", when passed in, set output_to_console = None
+    parser.add_argument('multiplier', nargs="?", help='A multiplier to be used to increase the executes of the commands by that multiplier.')
+    parser.add_argument('-nco', '--no_console_output', help='A multiplier to be used to increase the executes of the commands by that multiplier.')
+    #TODO confirm, passing this param in, no output except into files
     
     args = parser.parse_args()
     
-    global project_id, output_file, multiplier
+    global project_id, output_file, multiplier, no_console_output
     project_id = args.project_id
     output_file = args.output_file
     
@@ -411,7 +391,7 @@ if __name__ == '__main__':
     logging.basicConfig(filename=output_filename + '-output.log', level=logging. DEBUG)   
      
     #multiplier = args.multiplier ? args.multiplier : 1
-    #TODO find shorter version of this code
+    #TODO online, find shorter version of this code
     if (args.multiplier):
         multiplier = args.multiplier
     else: 
