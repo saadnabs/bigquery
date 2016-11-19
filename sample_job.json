@@ -1,0 +1,120 @@
+{
+   "status":{
+      "state":"DONE"
+   },
+   "kind":"bigquery#job",
+   "statistics":{
+      "query":{
+         "queryPlan":[
+            {
+               "name":"Stage 1",
+               "recordsWritten":"79",
+               "waitRatioMax":0.0645521057254614,
+               "readRatioAvg":0.0,
+               "readRatioMax":0.0,
+               "steps":[
+                  {
+                     "kind":"READ",
+                     "substeps":[
+                        "is_bot",
+                        "FROM publicdata:samples.wikipedia"
+                     ]
+                  },
+                  {
+                     "kind":"AGGREGATE",
+                     "substeps":[
+                        "COUNT_STAR() AS f0_"
+                     ]
+                  },
+                  {
+                     "kind":"WRITE",
+                     "substeps":[
+                        "f0_",
+                        "TO __stage1_output"
+                     ]
+                  }
+               ],
+               "recordsRead":"313797035",
+               "computeRatioAvg":0.5776294276941394,
+               "writeRatioMax":1.0,
+               "writeRatioAvg":0.14123665000497532,
+               "waitRatioAvg":0.05958132121284675,
+               "id":"1",
+               "computeRatioMax":0.7516775434579973
+            },
+            {
+               "name":"Stage 2",
+               "recordsWritten":"1",
+               "waitRatioMax":0.10758684287576899,
+               "readRatioAvg":0.0,
+               "readRatioMax":0.0,
+               "steps":[
+                  {
+                     "kind":"READ",
+                     "substeps":[
+                        "f0_",
+                        "FROM __stage1_output AS publicdata:samples.wikipedia"
+                     ]
+                  },
+                  {
+                     "kind":"AGGREGATE",
+                     "substeps":[
+                        "SUM_OF_COUNTS(f0_) AS f0_"
+                     ]
+                  },
+                  {
+                     "kind":"WRITE",
+                     "substeps":[
+                        "f0_",
+                        "TO __output"
+                     ]
+                  }
+               ],
+               "recordsRead":"79",
+               "computeRatioAvg":0.0407634075866702,
+               "writeRatioMax":0.016106578797192763,
+               "writeRatioAvg":0.016106578797192763,
+               "waitRatioAvg":0.10758684287576899,
+               "id":"2",
+               "computeRatioMax":0.0407634075866702
+            }
+         ],
+         "totalBytesBilled":"0",
+         "totalBytesProcessed":"0",
+         "cacheHit":false,
+         "billingTier":1,
+         "referencedTables":[
+            {
+               "projectId":"publicdata",
+               "tableId":"wikipedia",
+               "datasetId":"samples"
+            }
+         ]
+      },
+      "endTime":"1479594903244",
+      "creationTime":"1479594901746",
+      "totalBytesProcessed":"0",
+      "startTime":"1479594902155"
+   },
+   "jobReference":{
+      "projectId":"nsaad-demos",
+      "jobId":"bqjob_r2a7d278019fc6f74_000001587ebaa012_1"
+   },
+   "etag":"\"wWvNncJfeAdSHVaIWRpICxBS7AM/LHzKZcQ_qYzbw8JsnwJtzxdax2c\"",
+   "user_email":"nsaad@google.com",
+   "configuration":{
+      "query":{
+         "createDisposition":"CREATE_IF_NEEDED",
+         "query":"SELECT COUNT(*) FROM publicdata:samples.wikipedia",
+         "writeDisposition":"WRITE_TRUNCATE",
+         "destinationTable":{
+            "projectId":"nsaad-demos",
+            "tableId":"anonb226c77d_fa7d_4c04_8dfb_89162d87645e",
+            "datasetId":"_6f82dd6b7d508acec6262b90d6dc4491a34b2a78"
+         },
+         "useQueryCache":false
+      }
+   },
+   "id":"nsaad-demos:bqjob_r2a7d278019fc6f74_000001587ebaa012_1",
+   "selfLink":"https://www.googleapis.com/bigquery/v2/projects/nsaad-demos/jobs/bqjob_r2a7d278019fc6f74_000001587ebaa012_1"
+}
