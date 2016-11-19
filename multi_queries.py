@@ -71,7 +71,7 @@ def load_commands(filename):
             if commandComponents[0].find("test") != -1:
                 command = commandComponents[2] + " " + str(random.randrange(0, 10, 1)) + ";echo 'done'"
                 
-            c = Command(commandComponents[1], command)
+            c = Command(commandComponents[0].strip(), command)
                 
             #Store the commands in the list to run
             commands.append(c);
@@ -87,10 +87,10 @@ def run_jobs():
         
         #Split the command appropriately for Popen
         cmd = command.executable
-        command_args = extract_quoted_sql(cmd)
+        command_args, statement = extract_quoted_sql(cmd)
         
-        output_log("   |    ", "true", 10)
-        output_log("   |--> " + cmd, "true", 10)
+        output_log("   |    ", "true", 20)
+        output_log("   |--> " + cmd, "true", 20)
         
         #Run each command in a process
         p = subprocess.Popen(command_args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -98,7 +98,7 @@ def run_jobs():
         #Store the processes to check their output later
         processes.append(p)
         
-    output_log("\n", "true", 10)
+    output_log("\n", "true", 20)
 # [END run_jobs]
     
 # [START extract_quoted_sql]
@@ -118,7 +118,7 @@ def extract_quoted_sql(cmd):
     else:
         command_args = cmd.split()
     
-    return command_args
+    return command_args, statement
 # [END extract_quoted_sql]
     
 # [START wait_for_processes_and_start_pollers()]
@@ -152,11 +152,11 @@ def wait_for_processes_and_start_pollers():
                 jb.bash_duration = int(command_end_time) - int(commands_start_time)
                 jobs_run.append(jb)
                 
-                output_log(str_command_end_time + " " + str(out), "true", 10)
+                output_log(str_command_end_time + " " + str(out), "true", 20)
                 processes.remove(p)
     
-    output_log(" ", "true", 10)
-    output_log("Awaiting " + str(len(polling_processes)) + " BigQuery jobs to complete", "true", 10)
+    output_log(" ", "true", 20)
+    output_log("Awaiting " + str(len(polling_processes)) + " BigQuery jobs to complete", "true", 20)
 # [END wait_for_processes_and_start_pollers()]
 
 # [START wait_for_pollers()]
@@ -170,7 +170,7 @@ def wait_for_pollers():
                 #If the process returns an output
                 if out != None: 
                     polling_processes.remove(p)
-                    output_log("  |--> waiting for " + str(len(polling_processes)) + " poller(s)", "true", 10)
+                    output_log("  |--> waiting for " + str(len(polling_processes)) + " poller(s)", "true", 20)
                     
                     #TODO BQ specific, response would be different
                     #Process the JSON and look for the relevant information.
@@ -197,14 +197,14 @@ def wait_for_pollers():
                         jb.bq_duration = int(jb.bq_end_time) - int(jb.bq_start_time)
                         jb.bytes_processed = statistics['totalBytesProcessed']
                         
-                        #TODO online, get query from JSON - this is probably wrong
-                        #TODO online, store sample JSON from a completed job so I have it when working offline
-                        jb.query_executed = statistics['query']
-                        #TODO test, check if this comes out right
-                        print("jb.query_executed  " + jb.query_executed)
+                        configuration = parsedjson['configuration']
+                        query = configuration['query']
+                        sql_statement = query['query']
+                        jb.query_executed = sql_statement
+                        
                         jb.category = get_query_category(jb.query_executed)
                         #TODO test, check if this comes out right
-                        print("jb.category " + jb.category)
+                        print("jb.category " + str(jb.category))
                         
                         
                         jobs_completed.append(jb)
@@ -214,7 +214,7 @@ def wait_for_pollers():
 # [START get_query_category(query)]
 def get_query_category(query):
     for c in commands:
-        cq = extract_quoted_sql(c.executable)
+        ca, cq = extract_quoted_sql(c.executable)
         if cq == query:
             return c.category
     
@@ -267,8 +267,8 @@ def output_completed_jobs():
 # [END output_completed_jobs]
 
 # [START output_log()]
-def output_log(message, _print, level):
-    if _print is not None and no_console_output is None:
+def output_log(message, _print, level): 
+    if( _print == "true" and no_console_output != True):
         print(message)
         
     logging.log(level, message)
@@ -315,8 +315,8 @@ class JobResult:
         print( '  |--> status[' + self.status + ']' )
         print( '  |--> bq_duration[' + str(self.bq_duration) + '] bq_start_time[' + date_time_from_milliseconds(self.bq_start_time) + '] bq_end_time[' + date_time_from_milliseconds(self.bq_end_time) + ']')
         print( '  |--> bash_duration[' + str(self.bash_duration) + '] bash_start_time[' + date_time_from_milliseconds(self.bash_start_time) + '] bash_end_time[' + date_time_from_milliseconds(self.bash_end_time) + ']')
-        print ('  |--> bytes_processed[' + human_readable_bytes(int(self.bytes_processed)) + '] category[' + self.category + ']')
-        print ('  |--> query[' + self.query_executed + ']')
+        print ('  |--> bytes_processed[' + human_readable_bytes(int(self.bytes_processed)) + '] category[' + str(self.category) + ']')
+        print ('  |--> query[' + str(self.query_executed) + ']')
 #End Class
 
 def date_time_from_milliseconds(ms):
@@ -344,8 +344,8 @@ def main(commandsFile):
     load_commands(commandsFile)
 
     #TODO confirm outputs still working
-    output_log("*******************************************************", "true", 10)
-    output_log(str(datetime.now()) + " -- Starting parallel bash scripts: ", "true", 10)
+    output_log("*******************************************************", "false", 20)
+    output_log(str(datetime.now()) + " -- Starting parallel bash scripts: ", "true", 20)
             
     #Get the start time of all commands
     global commands_start_time
@@ -355,11 +355,11 @@ def main(commandsFile):
     wait_for_processes_and_start_pollers()
     wait_for_pollers()
     
-    output_log("\n*******************************************************", "true", 10)
-    output_log(str(datetime.now()) + " -- Job Results", "true", 10)
-    output_log("*******************************************************\n", "true", 10)
+    output_log("\n*******************************************************", "true", 20)
+    output_log(str(datetime.now()) + " -- Job Results", "true", 20)
+    output_log("*******************************************************\n", "true", 20)
     output_completed_jobs();
-    output_log("\n*******************************************************\n", "true", 10)
+    output_log("\n*******************************************************\n", "true", 20)
 
 # [END run]   
   
@@ -372,15 +372,16 @@ if __name__ == '__main__':
     parser.add_argument('project_id', help='Project ID to use.', default="nsaad-demos")
     parser.add_argument('output_file', nargs="?", help='Name of the file to use to output the log/results.', default=datetime.now().strftime("%Y-%m-%d-%H-%M"))
     parser.add_argument('multiplier', nargs="?", help='A multiplier to be used to increase the executes of the commands by that multiplier.')
-    parser.add_argument('-nco', '--no_console_output', help='A multiplier to be used to increase the executes of the commands by that multiplier.')
-    #TODO confirm, passing this param in, no output except into files
+    parser.add_argument('-nco', '--no_console_output', action='store_true', help='A multiplier to be used to increase the executes of the commands by that multiplier.')
     
     args = parser.parse_args()
     
+    #Set the global variables from the params
     global project_id, output_file, multiplier, no_console_output
     project_id = args.project_id
     output_file = args.output_file
     
+    #Set up the logging
     log_path = path + "logs/" 
     output_filename = os.path.join(log_path, output_file)
     
@@ -388,9 +389,11 @@ if __name__ == '__main__':
         os.makedirs(log_path)
     
     logging.basicConfig(filename=output_filename + '-output.log', level=logging. DEBUG)   
-     
-    #multiplier = args.multiplier ? args.multiplier : 1
-    #TODO online, find shorter version of this code
+    
+    #Set the correct "no console output" value
+    no_console_output = args.no_console_output
+
+    #Set a default value for multiplier to 1 if not passed in
     if (args.multiplier):
         multiplier = args.multiplier
     else: 
