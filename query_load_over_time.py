@@ -1,11 +1,14 @@
 import argparse
 import datetime
+import io
 import math
 import subprocess
 import sys  
 
 from datetime import datetime
+from io import StringIO
 from time import sleep
+from subprocess import Popen, PIPE, CalledProcessError
 
 # [START calculate_time_in_seconds]
 def calculate_time_in_seconds(time_period):
@@ -85,10 +88,14 @@ def main(commands_file):
             #print("hit ramp up cycle number [" + str((time_counter / ramp_up_period) + 1) + "]")
             print("At " + str(time_counter) + " second(s) hit ramp up cycle " + str((time_counter / ramp_up_period) + 1) + " setting multiplier to " + str(int(m)))
             
-            #TODO test, don't block on call... need to do it async and move on... otherwise need to create new processes here too with popen.. or threadpool
-            #TODO test, what happens to output here?
-            #p = subprocess.Popen(["python","multi_queries.py", commands_file, project_id, output_file, str(m)], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-            subprocess.call(["python","multi_queries.py", commands_file, project_id, output_file, str(m)])
+            #TODO FR< doesn't block on call... but output not pushed out.
+            '''with Popen(["python","multi_queries.py", commands_file, project_id, output_file, str(m)], bufsize=1, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True) as p, StringIO() as buf:
+                for line in p.stdout:
+                    print(line)
+                    buf.write(line)
+                    output = buf.getvalue()'''
+            p = subprocess.Popen(["python","multi_queries.py", commands_file, project_id, output_file, str(m), no_console_output], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            #subprocess.call(["python","multi_queries.py", commands_file, project_id, output_file, str(m)])
             
             #For testing initially
             #print('subprocess.call(["python","multi_queries.py", ' + commands_file + ', ' + project_id + ', ' + output_file + ', ' + str(int(m)) + '])')
@@ -102,7 +109,8 @@ def main(commands_file):
     
     print("*******************************************************")
     print(str(datetime.now()) + " -- Completed query load generation: ")
-    print("\n*******************************************************\n")
+    print(output_file + " was used for results and log files")
+    print("*******************************************************\n")
 
 # [END run]  
 
@@ -120,15 +128,13 @@ if __name__ == '__main__':
     #TODO: implement the different multiplier options and decide if I want to do exponential and if that makes sense
     parser.add_argument('-m', '--multiplier', help='Define how you want the multiplier to work, valid options are: increment (+1), step2 (+2), exponential(2^)\ndefault is set to incremental\nany incorrect input will be defaulted to incremental', default="incremental")
     parser.add_argument('-mc', '--multiplier-cap', help='Define a cap for how high the multiplier for the number of queries to run can go, default is set to 10', default=10)
-                                                    
-                                                    #TODO test, I think this is sorted -  format the date with less milliseconds and no spaces
     parser.add_argument('-o', '--output-file', help='Name of the file to use to output the log/results.', default=datetime.now().strftime("%Y-%m-%d-%H-%M"))
-    #TODO change some arguments to flag for "no_console_output", multiplier cap (use 5 as default), multiplier (use increment as default), ramp_up_period (use 10 as default)
+    parser.add_argument('-nco', '--no_console_output', action='store_true', help='A multiplier to be used to increase the executes of the commands by that multiplier.')
 
     args = parser.parse_args()
     
     #Setting params global
-    global project_id, output_file, multiplier_cap
+    global project_id, output_file, multiplier_cap, no_console_output
     global time_period, ramp_up_period, multiplier
     
     project_id = args.project_id
@@ -137,6 +143,10 @@ if __name__ == '__main__':
     
     multiplier = args.multiplier
     
+    if args.no_console_output == True:
+        no_console_output = "-nco"
+    else:
+        no_console_output = ""
     try:
         multiplier_cap = int(args.multiplier_cap)
         ramp_up_period = int(args.ramp_up_period)
