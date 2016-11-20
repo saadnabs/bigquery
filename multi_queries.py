@@ -203,9 +203,6 @@ def wait_for_pollers():
                         jb.query_executed = sql_statement
                         
                         jb.category = get_query_category(jb.query_executed)
-                        #TODO test, check if this comes out right
-                        print("jb.category " + str(jb.category))
-                        
                         
                         jobs_completed.append(jb)
                         if jb in jobs_run: jobs_run.remove(jb)
@@ -233,10 +230,12 @@ def output_completed_jobs():
         os.makedirs(result_path)
     
     file_exists = False
-    #TODO online check if there's a more elegant way to do an (append or write) file
     try:
+        #If it doesn't throw an error to read, then the file exists; otherwise, create a new file
         f = open(output_filename, 'r')
+        #If soo, load it to append
         f = open(output_filename, 'a')
+        #And then we know the file already existed
         file_exists = True 
     except IOError as detail:
         if str(detail).find("No such file or directory"):
@@ -258,7 +257,7 @@ def output_completed_jobs():
                           date_time_from_milliseconds(job.bq_start_time), date_time_from_milliseconds(job.bq_end_time), \
                           date_time_from_milliseconds(job.bash_start_time), date_time_from_milliseconds(job.bash_end_time), \
                           job.category, job.query_executed, job.job_id) )
-            #TODO test, category/query in job result
+
     finally:
         f.close()
     
@@ -343,8 +342,7 @@ path="runs/"
 def main(commandsFile):
     load_commands(commandsFile)
 
-    #TODO confirm outputs still working
-    output_log("*******************************************************", "false", 20)
+    output_log("*******************************************************", "true", 20)
     output_log(str(datetime.now()) + " -- Starting parallel bash scripts: ", "true", 20)
             
     #Get the start time of all commands
