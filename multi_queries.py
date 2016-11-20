@@ -388,7 +388,8 @@ if __name__ == '__main__':
     if not os.path.exists(log_path):
         os.makedirs(log_path)
     
-    logging.basicConfig(filename=output_filename + '-output.log', level=logging. DEBUG)   
+    logging.basicConfig(filename=output_filename + '-output.log', level=logging. DEBUG)
+    print("in multi: outputfile " + output_file)   
     
     #Set the correct "no console output" value
     no_console_output = args.no_console_output
