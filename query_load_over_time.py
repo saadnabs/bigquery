@@ -102,15 +102,17 @@ def main(commands_file):
         sleep(1)
         time_counter += 1
         
-    print("\nFinished ramping up - awaiting processes outputs\n")
-    while len(processes) > 0:
-        for p in processes:
-            #When the process has completed and returned a success exit code, get it's output
-            p.wait()
-            out, err = p.communicate()
-            if out != "" and out is not None: print(str(out))
-            if err != "" and err is not None: print(str(err))
-            processes.remove(p)
+    print("\nFinished ramping up.")
+    if wait_for_outputs:
+        print("Awaiting processes outputs...\n")
+        while len(processes) > 0:
+            for p in processes:
+                #When the process has completed and returned a success exit code, get it's output
+                p.wait()
+                out, err = p.communicate()
+                if out != "" and out is not None: print(str(out))
+                if err != "" and err is not None: print(str(err))
+                processes.remove(p)
 
     print("*******************************************************")
     print(str(datetime.now()) + " -- Completed query load generation: ")
@@ -136,16 +138,19 @@ if __name__ == '__main__':
     parser.add_argument('-mc', '--multiplier-cap', help='Define a cap for how high the multiplier for the number of queries to run can go, default is set to 10', default=10)
     parser.add_argument('-o', '--output-file', help='Name of the file to use to output the log/results.', default=datetime.now().strftime("%Y-%m-%d-%H-%M"))
     parser.add_argument('-nco', '--no_console_output', action='store_true', help='A multiplier to be used to increase the executes of the commands by that multiplier.')
+    parser.add_argument('-w', '--wait_for_outputs', action='store_true', help='Should this script wait for outputs from the sub processes or just get the outputs in the output file?')
 
     args = parser.parse_args()
     
     #Setting params global
-    global project_id, output_file, multiplier_cap, no_console_output
+    global project_id, output_file, multiplier_cap, no_console_output, wait_for_outputs
     global time_period, ramp_up_period, multiplier
     
     project_id = args.project_id
     output_file = args.output_file
     time_period = args.time_period
+    wait_for_outputs = args.wait_for_outputs
+    print("wait_for_outputs " + str(wait_for_outputs))
     
     multiplier = args.multiplier
     
