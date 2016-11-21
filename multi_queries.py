@@ -262,7 +262,7 @@ def output_completed_jobs():
         f.close()
     
     for i in range(0, len(jobs_completed)):
-        jobs_completed[i].print_jobresult_details()    
+        output_log(jobs_completed[i].print_jobresult_details(), "true", 20)    
 # [END output_completed_jobs]
 
 # [START output_log()]
@@ -310,12 +310,12 @@ class JobResult:
         print('JobResult with job_id[' + self.job_id + ']')
     
     def print_jobresult_details(self):
-        print('JobResult with job_id[' + self.job_id + ']')
-        print( '  |--> status[' + self.status + ']' )
-        print( '  |--> bq_duration[' + str(self.bq_duration) + '] bq_start_time[' + date_time_from_milliseconds(self.bq_start_time) + '] bq_end_time[' + date_time_from_milliseconds(self.bq_end_time) + ']')
-        print( '  |--> bash_duration[' + str(self.bash_duration) + '] bash_start_time[' + date_time_from_milliseconds(self.bash_start_time) + '] bash_end_time[' + date_time_from_milliseconds(self.bash_end_time) + ']')
-        print ('  |--> bytes_processed[' + human_readable_bytes(int(self.bytes_processed)) + '] category[' + str(self.category) + ']')
-        print ('  |--> query[' + str(self.query_executed) + ']')
+        return 'JobResult with job_id[' + self.job_id + ']' + "\n" + \
+               '  |--> status[' + self.status + ']' + "\n" + \
+               '  |--> bq_duration[' + str(self.bq_duration) + '] bq_start_time[' + date_time_from_milliseconds(self.bq_start_time) + '] bq_end_time[' + date_time_from_milliseconds(self.bq_end_time) + ']' + "\n" + \
+               '  |--> bash_duration[' + str(self.bash_duration) + '] bash_start_time[' + date_time_from_milliseconds(self.bash_start_time) + '] bash_end_time[' + date_time_from_milliseconds(self.bash_end_time) + ']' + "\n" + \
+               '  |--> bytes_processed[' + human_readable_bytes(int(self.bytes_processed)) + '] category[' + str(self.category) + ']' + "\n" + \
+               '  |--> query[' + str(self.query_executed) + ']'
 #End Class
 
 def date_time_from_milliseconds(ms):
@@ -387,7 +387,6 @@ if __name__ == '__main__':
         os.makedirs(log_path)
     
     logging.basicConfig(filename=output_filename + '-output.log', level=logging. DEBUG)
-    print("in multi: outputfile " + output_file)   
     
     #Set the correct "no console output" value
     no_console_output = args.no_console_output
