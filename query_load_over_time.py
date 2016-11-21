@@ -86,35 +86,41 @@ def main(commands_file):
         
         if (time_counter % ramp_up_period) == 0:
             #print("hit ramp up cycle number [" + str((time_counter / ramp_up_period) + 1) + "]")
-            print("At " + str(time_counter) + " second(s) hit ramp up cycle " + str((time_counter / ramp_up_period) + 1) + " setting multiplier to " + str(int(m)))
+            print("At " + str(time_counter) + " second(s) hit ramp up cycle " + str((time_counter / ramp_up_period) + 1) + " with multiplier at " + str(int(m)))
+
+            #Append no_console_output if it's passed into this script         
+            args = ["python","multi_queries.py", commands_file, project_id, output_file, str(m)]
+            if no_console_output is not None and no_console_output != "": args.append("-nco")
             
-            #TODO FR< doesn't block on call... but output not pushed out.
-            '''with Popen(["python","multi_queries.py", commands_file, project_id, output_file, str(m)], bufsize=1, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True) as p, StringIO() as buf:
-                for line in p.stdout:
-                    print(line)
-                    buf.write(line)
-                    output = buf.getvalue()'''
-            p = subprocess.Popen(["python","multi_queries.py", commands_file, project_id, output_file, str(m), no_console_output], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-            #subprocess.call(["python","multi_queries.py", commands_file, project_id, output_file, str(m)])
+            p = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            processes.append(p)
             
-            #For testing initially
-            #print('subprocess.call(["python","multi_queries.py", ' + commands_file + ', ' + project_id + ', ' + output_file + ', ' + str(int(m)) + '])')
-            
-            #Increment the multiplier by one
+            #Increment the multiplier by one step
             m = increase_multiplier(m)
         
         #Sleep a second and increment the time counter
         sleep(1)
         time_counter += 1
-    
+        
+    print("\nFinished ramping up - awaiting processes outputs\n")
+    while len(processes) > 0:
+        for p in processes:
+            #When the process has completed and returned a success exit code, get it's output
+            p.wait()
+            out, err = p.communicate()
+            if out != "" and out is not None: print(str(out))
+            if err != "" and err is not None: print(str(err))
+            processes.remove(p)
+
     print("*******************************************************")
     print(str(datetime.now()) + " -- Completed query load generation: ")
-    print(output_file + " was used for results and log files")
+    print(output_file + " is being used to populate results (as they come in) and log files")
     print("*******************************************************\n")
 
 # [END run]  
 
 exp_multiplier = 1
+processes = []
     
 # [START main]
 if __name__ == '__main__':
@@ -147,6 +153,7 @@ if __name__ == '__main__':
         no_console_output = "-nco"
     else:
         no_console_output = ""
+        
     try:
         multiplier_cap = int(args.multiplier_cap)
         ramp_up_period = int(args.ramp_up_period)
