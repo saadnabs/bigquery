@@ -341,8 +341,13 @@ path="runs/"
 # [START run]
 def main(commandsFile):
     load_commands(commandsFile)
-
-    output_log("*******************************************************", "true", 20)
+    output_log("++++++++++++++++++++++++++++++++++++++++++++++++++++++++", "true", 20)
+    output_log("Run with configuration: ", "true", 20)
+    output_log("  |--> command_file: " + commandsFile, "true", 20)
+    output_log("  |--> project_id: " + project_id, "true", 20)
+    output_log("  |--> multiplier: " + multiplier, "true", 20)
+    output_log("  |--> run id: " + run_id, "true", 20)
+    output_log("--------------------------------------------------------\n\n", "true", 20)
     output_log(str(datetime.now()) + " -- Starting parallel bash scripts: ", "true", 20)
             
     #Get the start time of all commands
@@ -353,11 +358,13 @@ def main(commandsFile):
     wait_for_processes_and_start_pollers()
     wait_for_pollers()
     
-    output_log("\n*******************************************************", "true", 20)
+    output_log("\n--------------------------------------------------------", "true", 20)
     output_log(str(datetime.now()) + " -- Job Results", "true", 20)
-    output_log("*******************************************************\n", "true", 20)
+    output_log("--------------------------------------------------------\n", "true", 20)
     output_completed_jobs();
-    output_log("\n*******************************************************\n", "true", 20)
+    output_log("\n--------------------------------------------------------\n", "true", 20)
+    output_log("End of run with id: " + run_id, "true", 20)
+    output_log("++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n\n", "true", 20)
 
 # [END run]   
   
@@ -375,7 +382,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
     
     #Set the global variables from the params
-    global project_id, output_file, multiplier, no_console_output
+    global project_id, output_file, multiplier, no_console_output, run_id
     project_id = args.project_id
     output_file = args.output_file
     
@@ -396,6 +403,9 @@ if __name__ == '__main__':
         multiplier = args.multiplier
     else: 
         multiplier = 1
+    
+    #ID just to distinguish between different runs of this script if run via the query_load_over_time script
+    run_id = str(args.commandsFile) + "-" + str(project_id) + "-" + multiplier
     
     main(
         args.commandsFile)
