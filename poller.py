@@ -62,7 +62,6 @@ def poll_running_bq_job(job_id, project_id):
     status = ""
     while status == "":
         processes = []
-        processes_outputs = []
         
         command_args = ['bq', '--project_id', project_id, '--format', 'json', 'wait', job_id, '1']
         processes.append(subprocess.Popen(command_args, stdout=subprocess.PIPE, stderr=subprocess.PIPE))
@@ -83,7 +82,6 @@ def poll_running_bq_job(job_id, project_id):
 
 #Script defaults that can be set
 processes = [] #Used to store the processes launched in parallel to run all the commands
-processes_outputs = []
   
 # [START run]
 def main(job_id, project_id, tech):
