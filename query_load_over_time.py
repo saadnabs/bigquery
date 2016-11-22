@@ -150,7 +150,6 @@ if __name__ == '__main__':
     output_file = args.output_file
     time_period = args.time_period
     wait_for_outputs = args.wait_for_outputs
-    print("wait_for_outputs " + str(wait_for_outputs))
     
     multiplier = args.multiplier
     

@@ -365,6 +365,8 @@ def main(commandsFile):
     output_log("\n--------------------------------------------------------\n", "true", 20)
     output_log("End of run with id: " + run_id, "true", 20)
     output_log("++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n\n", "true", 20)
+    
+    #TODO call writeDataLoader py on the result file
 
 # [END run]   
   
