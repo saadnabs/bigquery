@@ -2,9 +2,9 @@
 <head>
 <script type="text/javascript"
 	src="https://www.gstatic.com/charts/loader.js"></script>
-<script type="text/javascript" src="runs/results/newtest.csv-dataloader.js"></script>
 <script type="text/javascript" src="js/listOfResults.js"></script>
-<!--  src="/Users/nsaad/Workspaces/bigquery/runs/results/newtest.csv-dataloader.js" -->
+<script type="text/javascript" src="js/dataloader.js"></script>
+<script type="text/javascript" src="runs/results/newtest.csv-dataloader.js"></script>
 <script type="text/javascript">
 
 	google.charts.load('current', {'packages':['timeline']});
@@ -42,18 +42,6 @@
     	    dataTable.addColumn({ type: 'date', id: 'Start' });
     	    dataTable.addColumn({ type: 'date', id: 'End' });
     	    dataTable.addRows(dataset);
-      }
-
-      function createNewJSSrc(filename) {
-
-          var loc = window.location.pathname;
-          var dir = loc.substring(0, loc.lastIndexOf('/') + 1);
-
-    	  var fileref=document.createElement('script');
-          fileref.setAttribute("type","text/javascript");
-          fileref.setAttribute("src", "runs/results/" + filename); //(dir + "runs/results/" + filename)
-          fileref.setAttribute("id", "jsDataRef");
-          return fileref;
       }
 
       function loadSelectResults() {

@@ -1,1 +1,1 @@
-var listOfResults = {'newtest':newtest};
+var listOfResults = {};
