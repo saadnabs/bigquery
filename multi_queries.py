@@ -246,17 +246,17 @@ def output_completed_jobs():
                 f.close()
     
     try:
-        writer = csv.writer(f)
+        writer = csv.writer(f, delimiter=";")
         
         if(not file_exists):
-            writer.writerow( ('Status', 'BQ Job Duration', 'Bash Job Duration', 'Bytes Processed', 'BQ Job Start Time', 'BQ Job End Time' , \
-                          'Bash Job Start Time', 'Bash Job End Time', 'Category', 'Query', 'Job Id') )
+            writer.writerow( ('Status', 'BQ Job Duration', 'Bash Job Duration', 'Bytes Processed', 'Bash Job Start Time', 'Bash Job End Time', \
+                          'BQ Job Start Time', 'BQ Job End Time', 'Category', 'Query', 'Job Id', 'Run Id') )
         
         for job in jobs_completed:
             writer.writerow( (job.status, job.bq_duration, job.bash_duration, human_readable_bytes(int(job.bytes_processed)), \
-                          date_time_from_milliseconds(job.bq_start_time), date_time_from_milliseconds(job.bq_end_time), \
                           date_time_from_milliseconds(job.bash_start_time), date_time_from_milliseconds(job.bash_end_time), \
-                          job.category, job.query_executed, job.job_id) )
+                          date_time_from_milliseconds(job.bq_start_time), date_time_from_milliseconds(job.bq_end_time), \
+                          job.category, job.query_executed, job.job_id, run_id) )
 
     finally:
         f.close()
