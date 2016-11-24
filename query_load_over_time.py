@@ -57,7 +57,7 @@ def increase_multiplier(current_multiplier):
     elif multiplier == "exponential":
         
         #Making exp_multiplier a global variable to retain the increment
-        current_multiplier =  math.pow(2, exp_multiplier) #1, 2, 4, 8, 16
+        current_multiplier =  math.pow(2, exp_multiplier) #1, 2, 4, 8, 16, 32
         exp_multiplier += 1
     else:
         print("No multiplier provided or not a valid option, defaulting to incremental")
