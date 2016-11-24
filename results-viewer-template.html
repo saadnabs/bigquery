@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html>
+<head>
+<script type="text/javascript"
+	src="https://www.gstatic.com/charts/loader.js"></script>
+<script type="text/javascript" src="js/listOfResults.js"></script>
+<!--  python_js_below -->
+<script type="text/javascript">
+
+	google.charts.load('current', {'packages':['timeline']});
+	google.charts.setOnLoadCallback(loadChart);
+
+      function loadChart() {
+
+        var newChartToLoad = document.getElementById("selectForResults");
+        var selectedOption = newChartToLoad.options[newChartToLoad.selectedIndex];
+        
+      	var datasetName = listOfResults[selectedOption.value];
+      	drawChart(datasetName);
+      }
+      
+      function drawChart(datasetName) {
+    	//console.log("in drawChart, dataset before: " + datasetName);
+    	var container = document.getElementById('timeline');
+        var chart = new google.visualization.Timeline(container);
+        var dataTable = new google.visualization.DataTable();
+
+        //console.log("in drawChart, dataset after: " + datasetName);
+        fillDataTable(dataTable, datasetName);
+        
+        var options = {
+        		timeline: { 
+            		showRowLabels: true, 
+            		enableInteractivity : true,
+            		showBarLabels: true,
+            		tooltip: { isHtml: true },
+            		avoidOverlappingGridLines : false
+                 }
+              };
+
+        chart.draw(dataTable, options);
+      }
+
+      function fillDataTable(dataTable, dataset) {
+    	    dataTable.addColumn({ type: 'string', id: 'Job ID' });
+    	    dataTable.addColumn({ type: 'string', id: 'Task' });
+    	    dataTable.addColumn({ type: 'datetime', id: 'Start' });
+    	    dataTable.addColumn({ type: 'datetime', id: 'End' });
+    	    dataTable.addRows(dataset);
+      }
+
+      function loadSelectResults() {
+          var selectInput = document.getElementById("selectForResults");
+          //console.log("selectInput: " + selectInput);
+          for (var key in listOfResults) {
+			//console.log("key: " + key);
+			var opt = document.createElement("option");
+   	     	opt.value= key;
+   	     	opt.innerHTML = key
+
+   	     selectInput.appendChild(opt);
+          }       
+      }
+
+      
+    </script>
+</head>
+<body onload="loadSelectResults();loadChart();">
+	<p>
+		<label>Choose dataset to visualise: </label><select onchange="loadChart();" id="selectForResults"></select>
+	</p>
+	<div id="timeline" style="width: 100%; height: 100%;"></div>
+</body>
+</html>
