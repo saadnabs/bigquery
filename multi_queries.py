@@ -385,9 +385,6 @@ def main(commandsFile):
     
     writeDataLoaderForCharts()
     shutil.copyfile(commandsFile, result_path + output_file + "-commands.file")
-    
-    #TODO copy commands with result file name 
-    #TODO output configuration run as well
 
 # [END run]   
   
