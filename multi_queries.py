@@ -223,6 +223,7 @@ def output_completed_jobs():
     
     result_path = path + "results/" 
     
+    global output_filename
     output_filename = output_file + "-results.csv"
     output_filename = os.path.join(result_path, output_filename)
     
@@ -273,6 +274,23 @@ def output_log(message, _print, level):
     logging.log(level, message)
     
 # [END output_log()]
+
+def writeDataLoaderForCharts():
+    print("in writeDataLoaderForCharts")
+    args = ["python","writeDataLoader.py", output_filename]
+    p = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    
+    count = 0
+    while p.poll() != 0:
+        sleep(0.5)
+        count += 1
+        if count > 10:
+            print("timed out, breaking...")
+            break
+    
+    out, err = p.communicate()
+    if p.poll() == 0: 
+        output_log("Chart results updated.", "true", 20)
 
 #Class
 class Command:
@@ -345,8 +363,8 @@ def main(commandsFile):
     output_log("Run with configuration: ", "true", 20)
     output_log("  |--> command_file: " + commandsFile, "true", 20)
     output_log("  |--> project_id: " + project_id, "true", 20)
-    output_log("  |--> multiplier: " + multiplier, "true", 20)
-    output_log("  |--> run id: " + run_id, "true", 20)
+    output_log("  |--> multiplier: " + str(multiplier), "true", 20)
+    output_log("  |--> run id: " + str(run_id), "true", 20)
     output_log("--------------------------------------------------------\n\n", "true", 20)
     output_log(str(datetime.now()) + " -- Starting parallel bash scripts: ", "true", 20)
             
@@ -367,6 +385,10 @@ def main(commandsFile):
     output_log("++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n\n", "true", 20)
     
     #TODO call writeDataLoader py on the result file
+    writeDataLoaderForCharts()
+    
+    #TODO copy commands with result file name 
+    #TODO output configuration run as well
 
 # [END run]   
   
@@ -407,7 +429,7 @@ if __name__ == '__main__':
         multiplier = 1
     
     #ID just to distinguish between different runs of this script if run via the query_load_over_time script
-    run_id = str(args.commandsFile) + "-" + str(project_id) + "-" + multiplier
+    run_id = str(args.commandsFile) + "-" + str(project_id) + "-" + str(multiplier)
     
     main(
         args.commandsFile)
