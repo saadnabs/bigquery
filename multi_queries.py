@@ -26,14 +26,14 @@ import argparse
 import csv
 import datetime
 import json
+import logging
 import os
 import time
-import uuid
+import shutil
 import subprocess
 import sys
 #TODO remove, when getting rid of test, get rid of this import
 import random
-import logging
 
 from googleapiclient import discovery
 from oauth2client.client import GoogleCredentials
@@ -221,8 +221,6 @@ def get_query_category(query):
 # [START output_completed_jobs]
 def output_completed_jobs():
     
-    result_path = path + "results/" 
-    
     global output_filename
     output_filename = output_file + "-results.csv"
     output_filename = os.path.join(result_path, output_filename)
@@ -276,7 +274,7 @@ def output_log(message, _print, level):
 # [END output_log()]
 
 def writeDataLoaderForCharts():
-    print("in writeDataLoaderForCharts")
+    
     args = ["python","writeDataLoader.py", output_filename]
     p = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     
@@ -289,6 +287,7 @@ def writeDataLoaderForCharts():
             break
     
     out, err = p.communicate()
+    print("err: " + err)
     if p.poll() == 0: 
         output_log("Chart results updated.", "true", 20)
 
@@ -355,6 +354,7 @@ jobs_completed = [] #Used to store the job results of jobs that have been confir
 processes = [] #Used to store the processes launched in parallel to run all the commands
 polling_processes = [] #Used to store the processes running the pollers for each job
 path="runs/"
+result_path = path + "results/"
   
 # [START run]
 def main(commandsFile):
@@ -384,8 +384,8 @@ def main(commandsFile):
     output_log("End of run with id: " + run_id, "true", 20)
     output_log("++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n\n", "true", 20)
     
-    #TODO call writeDataLoader py on the result file
     writeDataLoaderForCharts()
+    shutil.copyfile(commandsFile, result_path + output_file + "-commands.file")
     
     #TODO copy commands with result file name 
     #TODO output configuration run as well
