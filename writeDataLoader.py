@@ -1,8 +1,11 @@
 import argparse
 import datetime
+import os
+import shutil
 import sys
 
 from datetime import datetime
+from shutil import move
 
 def writeFile(resultsFile):
     
@@ -13,15 +16,16 @@ def writeFile(resultsFile):
         print("file doesn't match {myfile}-results.csv format, exiting")
         sys.exit()
         
-    print("to_dash " + str(to_dash))
+    #print("to_dash " + str(to_dash))
     #runs/results/newtest
+    global output_file
     output_file = resultsFile[:to_dash] + "-dataloader.js"
     print("output_file " + str(output_file))
     #runs/results/newtest-dataloader.js
     
     to_slash = output_file.rfind("/") + 1
     js_var_name = resultsFile[to_slash:to_dash]
-    print("js_var_name " + str(js_var_name))
+    #print("js_var_name " + str(js_var_name))
     #newtest
     
     '''if not os.path.exists(result_path):
@@ -94,9 +98,79 @@ def writeFile(resultsFile):
     finally:
         rf.close()
 
+def update_results_viewer():
+    try:
+        #Check if output file already exists
+        output = open(results_viewer_output, 'r')
+        
+        try:
+            #Create a temp file
+            temp = open(results_viewer_temp, 'w')
+            
+            #If so, call make copy and append with existing output
+            create_output_append_js(output, temp)
+            
+            #Copy temp to output filename
+            os.remove(results_viewer_output)
+            #TODO move to /runs/results/
+            move(results_viewer_temp, results_viewer_output)
+        except IOError:
+            print("Could not create temp file, failing the write...")
+            sys.exit()
+            
+        finally:
+            temp.close()
+            
+    except IOError:
+            #Output file didn't exist, opening template
+            try:
+                template = open(results_viewer_template, 'r')
+                try:
+                    output = open(results_viewer_output, 'w')
+                    create_output_append_js(template, output)
+                    #TODO move to /runs/results/
+                except IOError:
+                    print("Can not open output file, failing the write...")
+                    sys.exit()
+                    output.close()
+                finally:
+                    output.close()
+        
+            except IOError:
+                print("Can not open template file, failing the write...")
+                sys.exit()
+                template.close()
+            finally:
+                template.close()
+    finally:
+        output.close()
+        
+def create_output_append_js(original, output):
+    
+    found_placeholder = False
+    for line in original.readlines():
+        if line.find("python_js_below") == -1 or found_placeholder == True:
+            output.write(line)
+        elif found_placeholder == False and line.find("python_js_below") != -1:
+            #Output the placeholder file
+            output.write(line)
+            
+            #TODO FR: would be nice to not insert if this source already exists, but not required
+            #Then output the new line
+            output.write('<script type="text/javascript" src="' + output_file + '"></script>\n')
+            found_placeholder = True
+        else:
+            print("shouldn't hit other condition...")
+    
+
 def main(resultsFile):
     writeFile(resultsFile)
+    update_results_viewer()
     #TODO recreate the results-viewer, while appending the JS file
+    
+results_viewer_template = "results-viewer-template.html"
+results_viewer_output = "results-viewer.html"
+results_viewer_temp = "results-viewer-temp.html"
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
