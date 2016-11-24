@@ -287,7 +287,6 @@ def writeDataLoaderForCharts():
             break
     
     out, err = p.communicate()
-    print("err: " + err)
     if p.poll() == 0: 
         output_log("Chart results updated.", "true", 20)
 
