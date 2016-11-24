@@ -11,22 +11,37 @@ def writeFile(resultsFile):
     
     print("resultsFile: " + resultsFile)
     #runs/results/newtest-results.csv
+    
+    #Find the dash
     to_dash = resultsFile.rfind("-")
     if to_dash == -1:
         print("file doesn't match {myfile}-results.csv format, exiting")
         sys.exit()
         
-    #print("to_dash " + str(to_dash))
-    #runs/results/newtest
-    global output_file
-    output_file = resultsFile[:to_dash] + "-dataloader.js"
-    print("output_file " + str(output_file))
-    #runs/results/newtest-dataloader.js
+    print("resultsFile " + str(resultsFile))
+    #Find the slash
+    to_slash = resultsFile.rfind("/") + 1
     
-    to_slash = output_file.rfind("/") + 1
-    js_var_name = resultsFile[to_slash:to_dash]
-    #print("js_var_name " + str(js_var_name))
-    #newtest
+    #Extract just the file name
+    filename = resultsFile[to_slash:to_dash]
+    
+    #Extract the path
+    path = resultsFile[:to_slash]
+    
+    #Create the JS path
+    js_path = path + "js/"
+    
+    #Create the final output file for the JS
+    global output_file
+    output_file = js_path + filename + "-dataloader.js"
+    
+    print("output_file " + str(output_file))
+    
+    js_var_name = filename
+    if not os.path.exists(js_path):
+        os.makedirs(js_path)
+        
+    
     
     '''if not os.path.exists(result_path):
         os.makedirs(result_path)
