@@ -32,8 +32,9 @@ def writeFile(resultsFile):
     js_path = path + "js/"
     
     #Create the final output file for the JS
-    global output_file
+    global output_file, output_file_only
     output_file = js_path + filename + "-dataloader.js"
+    output_file_only = filename + "-dataloader.js"
     
     print("output_file " + str(output_file))
     
@@ -127,7 +128,7 @@ def update_results_viewer():
             
             #Copy temp to output filename
             os.remove(results_viewer_output)
-            #TODO move to /runs/results/
+            
             move(results_viewer_temp, results_viewer_output)
         except IOError:
             print("Could not create temp file, failing the write...")
@@ -143,7 +144,7 @@ def update_results_viewer():
                 try:
                     output = open(results_viewer_output, 'w')
                     create_output_append_js(template, output)
-                    #TODO move to /runs/results/
+                    
                 except IOError:
                     print("Can not open output file, failing the write...")
                     sys.exit()
@@ -172,7 +173,7 @@ def create_output_append_js(original, output):
             
             #TODO FR: would be nice to not insert if this source already exists, but not required
             #Then output the new line
-            output.write('<script type="text/javascript" src="' + output_file + '"></script>\n')
+            output.write('<script type="text/javascript" src="js/' + output_file_only + '"></script>\n')
             found_placeholder = True
         else:
             print("shouldn't hit other condition...")
@@ -181,10 +182,9 @@ def create_output_append_js(original, output):
 def main(resultsFile):
     writeFile(resultsFile)
     update_results_viewer()
-    #TODO recreate the results-viewer, while appending the JS file
     
 results_viewer_template = "results-viewer-template.html"
-results_viewer_output = "results-viewer.html"
+results_viewer_output = "runs/results/results-viewer.html"
 results_viewer_temp = "results-viewer-temp.html"
 
 if __name__ == '__main__':
