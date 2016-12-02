@@ -27,6 +27,7 @@ import csv
 import datetime
 import json
 import logging
+import multiprocessing
 import os
 import time
 import shutil
@@ -34,12 +35,25 @@ import subprocess
 import sys
 #TODO remove, when getting rid of test, get rid of this import
 import random
+import uuid
 
+from multiprocessing import Process
 from googleapiclient import discovery
 from oauth2client.client import GoogleCredentials
 from subprocess import Popen, PIPE, CalledProcessError
 from datetime import datetime
 from time import sleep
+
+# [START init_bq_api]
+def init_bq_api(): 
+    
+    # Grab the application's default credentials from the environment.
+    global credentials, bigquery
+    credentials = GoogleCredentials.get_application_default()
+
+    # Construct the service object for interacting with the BigQuery API.
+    bigquery = discovery.build('bigquery', 'v2', credentials=credentials)
+# [END init_bq_api]
 
 # [START load_commands]
 def load_commands(filename):
@@ -47,31 +61,52 @@ def load_commands(filename):
     
     com_id = 1
     for line in f:
-        #Ignore the line that gives an example of the format to be used in the file
+        #Ignore any commented out lines
         if (line[:1] == "#"):
             continue 
         
-        commandComponents = (line[:-1] if line.endswith('\n') else line).split(';')
+        commandComponents = (line[:-1] if line.endswith('\n') else line).split('|')
         if (len(commandComponents) != 3):
-            output_log("ERROR: The format of the file doesn't match the expected format, please follow the categoy;number;command format", "true", 40)
+            output_log("ERROR: The format of the file doesn't match the expected format, please follow the categoy|number|command format", "true", 40)
             sys.exit()
         
         num_of_executions = int(commandComponents[1]) * int(multiplier)
         
         #Add in duplicate commands up to the number of executions passed in the file 
         for i in range(0, num_of_executions):
+            t=""
+            command = commandComponents[2]
             
-            #if we are running BQ command 
-            if commandComponents[2].find("bq") != -1:
-                command = commandComponents[2]
-                bq_location = commandComponents[2].find("bq")
+            #if we are running BQAPI command 
+            if command.find(tech_options[0]) != -1:
+                #Remove 'bqapi "' from the start and the last double quote at the end 
+                command = command[7:-1]
+                t = tech_options[0]
+                
+                #If we have a command that uses BQ API, make sure we initiliase it
+                global need_bq_api_init
+                if need_bq_api_init == False:
+                    need_bq_api_init = True
+                
+            #if we are running BQ CLI command    
+            elif command.find(tech_options[1]) != -1:
+                
+                #Add project ID after BQ command
+                bq_location = command.find("bq")
                 bq_end = bq_location + len("bq") + 1 #include space in this
                 command = command[:bq_end] + '--project_id ' + project_id + " " + command[bq_end:]
+                t = tech_options[1]
             
-            if commandComponents[0].find("test") != -1:
-                command = commandComponents[2] + " " + str(random.randrange(0, 10, 1)) + ";echo 'done'"
+            #if we are running beeline TODO CLI
+            elif command.find(tech_options[2]) != -1:
+                t = tech_options[2]
                 
+            #any other tech passed in the commands file gets picked up here
+            else:
+                t = tech_options[3]
+                    
             c = Command(commandComponents[0].strip(), command)
+            c.tech = t
                 
             #Store the commands in the list to run
             commands.append(c);
@@ -85,21 +120,68 @@ def run_jobs():
     #Iterate through all the commands
     for command in commands:
         
-        #Split the command appropriately for Popen
         cmd = command.executable
-        command_args, statement = extract_quoted_sql(cmd)
         
+        #Output command to be run:
         output_log("   |    ", "true", 20)
         output_log("   |--> " + cmd, "true", 20)
         
-        #Run each command in a process
-        p = subprocess.Popen(command_args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        
-        #Store the processes to check their output later
-        processes.append(p)
+        #Run each command in a process, handling BQ API differently
+        if command.tech == tech_options[0]:
+            
+        #TODO is still quite slow, figure out multiprocessing 
+        #     or extract BQ API running into a separate script, and then keep the same logic for handling bq/bq api
+        #     beeline TBD how to handle it
+            p1 = Process(target=async_query(
+                bigquery,
+                project_id,
+                cmd))
+            '''query_job = async_query(
+                bigquery,
+                project_id,
+                cmd)'''
+        else:
+            #Split the command appropriately for Popen
+            command_args, statement = extract_quoted_sql(cmd) 
+            p = subprocess.Popen(command_args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            
+            #Store the processes to check their output later
+            processes.append(p)
         
     output_log("\n", "true", 20)
+    sys.exit()
 # [END run_jobs]
+
+def async_query(bigquery, project_id, query):
+    
+    # Generate a unique job_id
+    job_data = {
+        'jobReference': {
+            'projectId': project_id,
+            'job_id': str(uuid.uuid4())
+        },
+        'configuration': {
+            'query': {
+                'query': query,
+                'priority': 'INTERACTIVE',
+                'useQueryCache':'false'
+            }
+        }
+    }
+    
+    #Get start time
+    start = datetime.now()
+    
+    #TODO confirm removed the return
+    out = bigquery.jobs().insert(
+        projectId=project_id,
+        body=job_data).execute(num_retries=3)
+        
+    #TODO update job result info here with out and append to run jobs
+    
+    end = datetime.now()
+    
+# [END async_query]
     
 # [START extract_quoted_sql]
 def extract_quoted_sql(cmd):
@@ -127,6 +209,7 @@ def wait_for_processes_and_start_pollers():
     #FR: add in ability to only have X number of pollers spun up so that they don't exhaust a machine if too many jobs are running, have a pool and spin up more as needed
     #    or maybe this FR is about using multiprocessing to call the inside code via separate thread -- making sure those threads have access to: project_id, jobs_run
     #    it would have to use a thread pool otherwise I'd have tons of threads spinning up like crazy  
+    
     #Check the status of the bash shell processes, and get their output
     while len(processes) > 0:
         for p in processes:
@@ -136,6 +219,8 @@ def wait_for_processes_and_start_pollers():
                 
                 command_end_time = int(round(time.time() * 1000)) 
                 str_command_end_time = str(datetime.now())
+                
+                #split this to a generic BQ job result update thing / might need something completely different for beeline
                 #TODO BQ specific project, ID...
                 job_id_newline = out.find("\n")
                 out = out[:job_id_newline] #Remove the \ns before printing               
@@ -192,6 +277,8 @@ def wait_for_pollers():
                                 
                         jb.status = state
                         statistics = parsedjson['statistics']
+                        jb.error_result = status["errorResult"]
+                        jb.bq_creation_time = statistics['creationTime']
                         jb.bq_start_time = statistics['startTime']
                         jb.bq_end_time = statistics['endTime']
                         jb.bq_duration = int(jb.bq_end_time) - int(jb.bq_start_time)
@@ -249,12 +336,12 @@ def output_completed_jobs():
         
         if(not file_exists):
             writer.writerow( ('Status', 'BQ Job Duration', 'Bash Job Duration', 'Bytes Processed', 'Bash Job Start Time', 'Bash Job End Time', \
-                          'BQ Job Start Time', 'BQ Job End Time', 'Category', 'Query', 'Job Id', 'Run Id') )
+                          'BQ Job Creation Time', 'BQ Job Start Time', 'BQ Job End Time', 'Category', 'Query', 'Job Id', 'Run Id') )
         
         for job in jobs_completed:
             writer.writerow( (job.status, job.bq_duration, job.bash_duration, human_readable_bytes(int(job.bytes_processed)), \
                           date_time_from_milliseconds(job.bash_start_time), date_time_from_milliseconds(job.bash_end_time), \
-                          date_time_from_milliseconds(job.bq_start_time), date_time_from_milliseconds(job.bq_end_time), \
+                          date_time_from_milliseconds(job.bq_creation_time), date_time_from_milliseconds(job.bq_start_time), date_time_from_milliseconds(job.bq_end_time), \
                           job.category, job.query_executed, job.job_id, run_id) )
 
     finally:
@@ -295,13 +382,14 @@ class Command:
     """The command object to be used for loading the queries to be run"""
     category = ""
     executable = ""
+    tech = ""
         
     def __init__(self, category, command):
         self.category = category
         self.executable = command
         
     def print_command_details(self):
-        print('Command with category[' + self.category + '] timesToExecute[' + str(self.timesToExecute) + '] \n--> executable[' + self.executable + '] ')
+        print('Command with category[' + self.category + '] tech[' + str(self.tech) + '] \n--> executable[' + self.executable + '] ')
 #End Class
 
 #Class
@@ -309,6 +397,7 @@ class JobResult:
     """The result details for each job run"""
     job_id = 0
     status = ""
+    bq_creation_time = ""
     bq_start_time = ""
     bq_end_time = ""
     bq_duration = ""
@@ -318,6 +407,7 @@ class JobResult:
     bytes_processed = ""
     category = ""
     query_executed = ""
+    error_result = ""
     
     def __init__(self, job_id):
         self.job_id = job_id
@@ -328,7 +418,7 @@ class JobResult:
     def print_jobresult_details(self):
         return 'JobResult with job_id[' + self.job_id + ']' + "\n" + \
                '  |--> status[' + self.status + ']' + "\n" + \
-               '  |--> bq_duration[' + str(self.bq_duration) + '] bq_start_time[' + date_time_from_milliseconds(self.bq_start_time) + '] bq_end_time[' + date_time_from_milliseconds(self.bq_end_time) + ']' + "\n" + \
+               '  |--> bq_duration[' + str(self.bq_duration) + '] bq_creation_time[' + str(self.bq_creation_time) + '] bq_start_time[' + date_time_from_milliseconds(self.bq_start_time) + '] bq_end_time[' + date_time_from_milliseconds(self.bq_end_time) + ']' + "\n" + \
                '  |--> bash_duration[' + str(self.bash_duration) + '] bash_start_time[' + date_time_from_milliseconds(self.bash_start_time) + '] bash_end_time[' + date_time_from_milliseconds(self.bash_end_time) + ']' + "\n" + \
                '  |--> bytes_processed[' + human_readable_bytes(int(self.bytes_processed)) + '] category[' + str(self.category) + ']' + "\n" + \
                '  |--> query[' + str(self.query_executed) + ']'
@@ -354,10 +444,14 @@ processes = [] #Used to store the processes launched in parallel to run all the 
 polling_processes = [] #Used to store the processes running the pollers for each job
 path="runs/"
 result_path = path + "results/"
+tech_options = ["bqapi", "bq", "beeline", "other"]
+need_bq_api_init = False
   
 # [START run]
 def main(commandsFile):
     load_commands(commandsFile)
+    
+    #Output configuration information
     output_log("++++++++++++++++++++++++++++++++++++++++++++++++++++++++", "true", 20)
     output_log("Run with configuration: ", "true", 20)
     output_log("  |--> command_file: " + commandsFile, "true", 20)
@@ -365,11 +459,14 @@ def main(commandsFile):
     output_log("  |--> multiplier: " + str(multiplier), "true", 20)
     output_log("  |--> run id: " + str(run_id), "true", 20)
     output_log("--------------------------------------------------------\n\n", "true", 20)
-    output_log(str(datetime.now()) + " -- Starting parallel bash scripts: ", "true", 20)
             
     #Get the start time of all commands
     global commands_start_time
     commands_start_time = int(round(time.time() * 1000))
+    output_log(str(datetime.now()) + " -- Starting parallel scripts: ", "true", 20)
+    
+    if need_bq_api_init == True:
+        init_bq_api()
     
     run_jobs()
     wait_for_processes_and_start_pollers()
