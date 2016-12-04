@@ -218,7 +218,7 @@ def wait_for_processes_and_start_pollers():
     #FR: add in ability to only have X number of pollers spun up so that they don't exhaust a machine if too many jobs are running, have a pool and spin up more as needed
     #    or maybe this FR is about using multiprocessing to call the inside code via separate thread -- making sure those threads have access to: project_id, jobs_run
     #    it would have to use a thread pool otherwise I'd have tons of threads spinning up like crazy  
-    
+    print("processes: " + str(len(processes)))
     #Check the status of the bash shell processes, and get their output
     while len(processes) > 0:
         for p in processes:
@@ -483,8 +483,6 @@ def main(commandsFile):
         bigquery = init_bq_api()
     
     run_jobs()
-    sleep(3)
-    sys.exit()
     wait_for_processes_and_start_pollers()
     wait_for_pollers()
     
