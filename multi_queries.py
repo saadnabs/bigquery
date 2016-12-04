@@ -46,13 +46,16 @@ from time import sleep
 
 # [START init_bq_api]
 def init_bq_api(): 
-    
     # Grab the application's default credentials from the environment.
     global credentials, bigquery
     credentials = GoogleCredentials.get_application_default()
-
+    
     # Construct the service object for interacting with the BigQuery API.
     bigquery = discovery.build('bigquery', 'v2', credentials=credentials)
+    #print("bigquery:" + str(bigquery))
+    
+    return bigquery
+    
 # [END init_bq_api]
 
 # [START load_commands]
@@ -116,7 +119,8 @@ def load_commands(filename):
 
 # [START run_jobs]
 def run_jobs():
-
+    pool = mp.Pool(10, initializer=init_bq_api)
+    
     #Iterate through all the commands
     for command in commands:
         
@@ -128,10 +132,13 @@ def run_jobs():
         
         #Run each command in a process, handling BQ API differently
         if command.tech == tech_options[0]:
-            pool = mp.Pool(10)
         #TODO is still quite slow, figure out multiprocessing 
         #     beeline TBD how to handle it
-            pool.apply_async(async_query, args=(bigquery, project_id, cmd))
+            def async_callback(result, func=cmd):
+                print("result: " + result)
+                processes.append(result)
+            results = pool.apply_async(async_query, args=(project_id, cmd), callback=async_callback)
+            print("pool: " + str(pool))
         else:
             #Split the command appropriately for Popen
             command_args, statement = extract_quoted_sql(cmd) 
@@ -140,10 +147,14 @@ def run_jobs():
             #Store the processes to check their output later
             processes.append(p)
         
+    #results.get()
+    pool.close()
+    print("len of processes: " + str(len(processes)))
+    
     output_log("\n", "true", 20)
 # [END run_jobs]
 
-def async_query(bigquery, project_id, query):
+def async_query(project_id, query):
     
     # Generate a unique job_id
     job_data = {
@@ -160,19 +171,24 @@ def async_query(bigquery, project_id, query):
         }
     }
     
+    # Construct the service object for interacting with the BigQuery API.
+    print("before bq")
+    bq = init_bq_api()
+    print("after bq " + str(bq))
     #Get start time
     start = datetime.now()
-    
     #TODO confirm removed the return
-    out = bigquery.jobs().insert(
+    print("before")
+    print("bq before " + str(bq))
+    out = bq.jobs().insert(
         projectId=project_id,
         body=job_data).execute(num_retries=3)
-    print("out: " + out)
+    print('here')
+    print("out: " + str(out))
     end = datetime.now()
     
     #update job result info here with out and append to run jobs
     addNewJobResult(out , start, end)
-    sys.exit()
     
 # [END async_query]
     
@@ -208,7 +224,9 @@ def wait_for_processes_and_start_pollers():
         for p in processes:
             #When the process has completed and returned a success exit code
             if p.poll() == 0:
+                print("p.poll: " + p.poll())
                 out, err = p.communicate()
+                print("out: " + out)
                 
                 command_end_time = int(round(time.time() * 1000)) 
                 str_command_end_time = str(datetime.now())
@@ -235,9 +253,9 @@ def wait_for_processes_and_start_pollers():
 def addNewJobResult(job_id, command_start_time, command_end_time):
     #Create a JobResult and start filling in the info
     jb = JobResult(job_id)
-    jb.bash_start_time = commands_start_time
+    jb.bash_start_time = command_start_time
     jb.bash_end_time = command_end_time
-    jb.bash_duration = int(command_end_time) - int(commands_start_time)
+    jb.bash_duration = int(command_end_time) - int(command_start_time)
     jobs_run.append(jb)
 
 # [START wait_for_pollers()]
@@ -462,9 +480,11 @@ def main(commandsFile):
     output_log(str(datetime.now()) + " -- Starting parallel scripts: ", "true", 20)
     
     if need_bq_api_init == True:
-        init_bq_api()
+        bigquery = init_bq_api()
     
     run_jobs()
+    sleep(3)
+    sys.exit()
     wait_for_processes_and_start_pollers()
     wait_for_pollers()
     
