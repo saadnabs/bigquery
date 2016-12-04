@@ -27,7 +27,7 @@ import csv
 import datetime
 import json
 import logging
-import multiprocessing
+import multiprocessing as mp
 import os
 import time
 import shutil
@@ -128,18 +128,24 @@ def run_jobs():
         
         #Run each command in a process, handling BQ API differently
         if command.tech == tech_options[0]:
-            
+            pool = mp.Pool(10)
         #TODO is still quite slow, figure out multiprocessing 
         #     or extract BQ API running into a separate script, and then keep the same logic for handling bq/bq api
         #     beeline TBD how to handle it
+            print("before: " + cmd + "  " + str(datetime.now()))
+            pool.apply_async(async_query, args=(bigquery, project_id, cmd))
+            '''
             p1 = Process(target=async_query(
                 bigquery,
                 project_id,
                 cmd))
+            '''
             '''query_job = async_query(
                 bigquery,
                 project_id,
                 cmd)'''
+            #p1.start()
+            print("after " + cmd + "  "  + str(datetime.now()))
         else:
             #Split the command appropriately for Popen
             command_args, statement = extract_quoted_sql(cmd) 
