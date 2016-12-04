@@ -130,22 +130,8 @@ def run_jobs():
         if command.tech == tech_options[0]:
             pool = mp.Pool(10)
         #TODO is still quite slow, figure out multiprocessing 
-        #     or extract BQ API running into a separate script, and then keep the same logic for handling bq/bq api
         #     beeline TBD how to handle it
-            print("before: " + cmd + "  " + str(datetime.now()))
             pool.apply_async(async_query, args=(bigquery, project_id, cmd))
-            '''
-            p1 = Process(target=async_query(
-                bigquery,
-                project_id,
-                cmd))
-            '''
-            '''query_job = async_query(
-                bigquery,
-                project_id,
-                cmd)'''
-            #p1.start()
-            print("after " + cmd + "  "  + str(datetime.now()))
         else:
             #Split the command appropriately for Popen
             command_args, statement = extract_quoted_sql(cmd) 
@@ -155,7 +141,6 @@ def run_jobs():
             processes.append(p)
         
     output_log("\n", "true", 20)
-    sys.exit()
 # [END run_jobs]
 
 def async_query(bigquery, project_id, query):
@@ -182,10 +167,12 @@ def async_query(bigquery, project_id, query):
     out = bigquery.jobs().insert(
         projectId=project_id,
         body=job_data).execute(num_retries=3)
-        
-    #TODO update job result info here with out and append to run jobs
-    
+    print("out: " + out)
     end = datetime.now()
+    
+    #update job result info here with out and append to run jobs
+    addNewJobResult(out , start, end)
+    sys.exit()
     
 # [END async_query]
     
@@ -236,12 +223,7 @@ def wait_for_processes_and_start_pollers():
                 #TODO BQ specific, pass in the correct tech in here
                 polling_processes.append(subprocess.Popen(["python", "poller.py", str(job_id), "bq"], stdout=subprocess.PIPE, stderr=subprocess.PIPE))
                 
-                #Create a JobResult and start filling in the info
-                jb = JobResult(job_id)
-                jb.bash_start_time = commands_start_time
-                jb.bash_end_time = command_end_time
-                jb.bash_duration = int(command_end_time) - int(commands_start_time)
-                jobs_run.append(jb)
+                addNewJobResult(job_id, command_start_time, command_end_time)
                 
                 output_log(str_command_end_time + " " + str(out), "true", 20)
                 processes.remove(p)
@@ -249,6 +231,14 @@ def wait_for_processes_and_start_pollers():
     output_log(" ", "true", 20)
     output_log("Awaiting " + str(len(polling_processes)) + " BigQuery jobs to complete", "true", 20)
 # [END wait_for_processes_and_start_pollers()]
+
+def addNewJobResult(job_id, command_start_time, command_end_time):
+    #Create a JobResult and start filling in the info
+    jb = JobResult(job_id)
+    jb.bash_start_time = commands_start_time
+    jb.bash_end_time = command_end_time
+    jb.bash_duration = int(command_end_time) - int(commands_start_time)
+    jobs_run.append(jb)
 
 # [START wait_for_pollers()]
 def wait_for_pollers():
