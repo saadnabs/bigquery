@@ -246,7 +246,7 @@ def wait_for_pollers():
                 #If the process returns an output
                 if out != None: 
                     polling_processes.remove(p)
-                    output_log("  |--> waiting for " + str(len(polling_processes)) + " poller(s)", "true", 20)
+                    output_log("  |--> waiting to poll " + str(len(jobs_run)) + " job(s)", "true", 20)
                     
                     #TODO BQ specific, response would be different
                     #Process the JSON and look for the relevant information.
@@ -259,7 +259,7 @@ def wait_for_pollers():
                         job_id = job_reference['jobId']
                         
                         #Create a new jobresult with the ID
-                        jb = JobResult(job_id);
+                        jb = JobResult(job_id)
                         
                         #But check for it in the jobs_running
                         #TODO to test this still works with bash bq
@@ -306,8 +306,8 @@ def get_job_in_list(id, list):
         job = jobs_run[i]
         if job.job_id == id:
             return job, i
-        else:
-            return None, i
+        
+    return None, i
 
 # [START wait_for_bqapi_jobs()]
 def wait_for_bqapi_jobs():
@@ -323,6 +323,7 @@ def wait_for_bqapi_jobs():
             state = status['state']
             
             if(state == "DONE"):
+                output_log("  |--> waiting to poll " + str(len(jobs_run)) + " job(s)", "true", 20)
                 fill_jb_details_and_complete(jb, out, i)
 # [END wait_for_bqapi_jobs()]
 
