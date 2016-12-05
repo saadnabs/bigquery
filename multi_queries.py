@@ -134,13 +134,8 @@ def run_jobs():
         if command.tech == tech_options[0]:
         #TODO is still quite slow, figure out multiprocessing 
         #     beeline TBD how to handle it
-         
-        #def async_callback(result, func=cmd):
-        #        print("result: " + str(result))
-        #        processes.append(result)
         
-            results = pool.apply_async(async_query, args=(project_id, cmd)) #, callback=async_callback
-            print("jobs run in run_jobs: " + str(jobs_run))
+            results = pool.apply_async(async_query, args=(project_id, cmd)) 
         else:
             #Split the command appropriately for Popen
             command_args, statement = extract_quoted_sql(cmd) 
@@ -151,7 +146,8 @@ def run_jobs():
         
     results.get()
     pool.close()
-    print("len of processes: " + str(len(processes)))
+    #TODO does this slow things down?
+    pool.join()
     
     output_log("\n", "true", 20)
 # [END run_jobs]
@@ -182,18 +178,15 @@ def async_query(project_id, query):
     out = bq.jobs().insert(
         projectId=project_id,
         body=job_data).execute(num_retries=3)
-    print("out: " + str(out))
+    
     end = int(round(time.time() * 1000))
     
     #Process the JSON to extract and store the job_id in a new JobResult 
-    print("before json")
     parsedjson = out
     job_reference = parsedjson['jobReference']
     job_id = job_reference['jobId']
-    print("job_id: " + job_id)
     
     addNewJobResult(job_id , start, end)
-    print("jobs run in async_query: " + str(jobs_run))
     
 # [END async_query]
     
@@ -203,7 +196,7 @@ def wait_for_processes_and_start_pollers():
     #FR: add in ability to only have X number of pollers spun up so that they don't exhaust a machine if too many jobs are running, have a pool and spin up more as needed
     #    or maybe this FR is about using multiprocessing to call the inside code via separate thread -- making sure those threads have access to: project_id, jobs_run
     #    it would have to use a thread pool otherwise I'd have tons of threads spinning up like crazy  
-    print("jobs_run: " + str(len(jobs_run)))
+
     #Check the status of the bash shell processes, and get their output
     while len(processes) > 0:
         for p in processes:
@@ -232,21 +225,15 @@ def wait_for_processes_and_start_pollers():
                 processes.remove(p)
     
     output_log(" ", "true", 20)
-    output_log("Awaiting " + str(len(polling_processes)) + " BigQuery jobs to complete", "true", 20)
 # [END wait_for_processes_and_start_pollers()]
 
 def addNewJobResult(job_id, command_start_time, command_end_time):
     #Create a JobResult and start filling in the info
-    print("in addNewJobResult")
     jb = JobResult(job_id)
     jb.bash_start_time = command_start_time
-    print("command_start_time " + str(command_start_time))
     jb.bash_end_time = command_end_time
-    print("command_end_time " + str(command_end_time))
     jb.bash_duration = int(command_end_time) - int(command_start_time)
-    print("bash_duration " + str(jb.bash_duration))
     
-    #print("jb " + jb.print_jobresult_details())
     jobs_run.append(jb)
 
 # [START wait_for_pollers()]
@@ -307,21 +294,8 @@ def fill_jb_details_and_complete(jb, json, index):
     jb.category = get_query_category(jb.query_executed)
     
     jobs_completed.append(jb)
-    print("job_completed len " + str(len(jobs_completed)))
     
     del jobs_run[index]
-    #jobs_run.remove(orig_jb)
-    '''for job in jobs_run[:]:
-        print("job:id: " + jb.job_id)
-        if job.job_id == jb.job_id:
-            jb_to_remove = get_job_in_list(jb.job_id, jobs_run)
-            print("job == jb? " + str(job == jb))
-            print("jb_to_remove == jb? " + str(jb_to_remove == jb))
-            print("true, found the same jb")
-            jobs_run.remove(jb_to_remove)'''
-    '''if orig_jb in jobs_run: 
-        print("found in")
-        jobs_run.remove(orig_jb)'''
 
 def get_job_in_list(id, list):
     for job in list:
@@ -336,23 +310,15 @@ def wait_for_bqapi_jobs():
     bq = init_bq_api()
     while len(jobs_run) > 0:
         for i in xrange(len(jobs_run) - 1, -1, -1):
-            print('i: ' + str(i))
             jb = jobs_run[i]
-    
-        #for jb in jobs_run[:]:
-            print("to process job: " + str(jb.job_id))
             
             out = bq.jobs().get(projectId=project_id, jobId=jb.job_id).execute(num_retries=3)
-                
-            print("out from get: " + str(out))
             
             status = out['status']
             state = status['state']
             
             if(state == "DONE"):
                 fill_jb_details_and_complete(jb, out, i)
-            
-            print("jobs_run len " + str(len(jobs_run)))
 # [END wait_for_bqapi_jobs()]
 
 # [START get_query_category(query)]
@@ -553,6 +519,9 @@ def main(commandsFile):
     
     run_jobs()
     wait_for_processes_and_start_pollers()
+    
+    output_log("Awaiting " + str(len(jobs_run)) + " BigQuery jobs to complete", "true", 20)
+    
     wait_for_pollers()
     wait_for_bqapi_jobs()
     
