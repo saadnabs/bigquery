@@ -38,7 +38,11 @@ def writeFile(resultsFile):
     
     print("output_file " + str(output_file))
     
-    js_var_name = filename
+    #Remove the dashes from the default date if not file name is provided as it's not a valid JS variable name, and add results_ at the start
+    js_var_name = filename.replace("-", "")
+    if is_int(js_var_name) == True:
+        js_var_name = "results_" + js_var_name
+        
     if not os.path.exists(js_path):
         os.makedirs(js_path)
         
@@ -92,15 +96,15 @@ def writeFile(resultsFile):
                 bq_end_minute = bq_end_time.minute
                 bq_end_second = bq_end_time.second
                 
-                f.write("        ['" + str(job_id) + "', 'Bash', new Date(0, 0, 0, " + str(bash_start_hour) + ", " + str(bash_start_minute) + ", " + str(bash_start_second) + ")," + \
+                f.write("        [\"" + str(job_id) + "\", \"Bash\", new Date(0, 0, 0, " + str(bash_start_hour) + ", " + str(bash_start_minute) + ", " + str(bash_start_second) + ")," + \
                         " new Date(0, 0, 0, " + str(bash_end_hour) + ", " + str(bash_end_minute) + ", " + str(bash_end_second) + ")], \n")
-                f.write("        ['" + str(job_id) + "', 'BQ', new Date(0, 0, 0, " + str(bq_start_hour) + ", " + str(bq_start_minute) + ", " + str(bq_start_second) + ")," + \
+                f.write("        [\"" + str(job_id) + "\", \"BQ\", new Date(0, 0, 0, " + str(bq_start_hour) + ", " + str(bq_start_minute) + ", " + str(bq_start_second) + ")," + \
                         " new Date(0, 0, 0, " + str(bq_end_hour) + ", " + str(bq_end_minute) + ", " + str(bq_end_second) + ")], \n")
             
                 if count > 1: continue #test purposes
             
             f.write("    ];\n")
-            f.write("  listOfResults['" + js_var_name + "'] = " + js_var_name + ";")
+            f.write("  listOfResults[\"" + js_var_name + "\"] = " + js_var_name + ";")
         except IOError:
             output_log("Can not open dataloader file to write to, check the script's permissions in this directory", "true", 40)
             f.close()
@@ -178,6 +182,12 @@ def create_output_append_js(original, output):
         else:
             print("shouldn't hit other condition...")
     
+def is_int(s):
+    try: 
+        int(s)
+        return True
+    except ValueError:
+        return False
 
 def main(resultsFile):
     writeFile(resultsFile)
