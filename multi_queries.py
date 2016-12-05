@@ -134,7 +134,6 @@ def run_jobs():
         if command.tech == tech_options[0]:
         #TODO is still quite slow, figure out multiprocessing 
         #     beeline TBD how to handle it
-        
             results = pool.apply_async(async_query, args=(project_id, cmd)) 
         else:
             #Split the command appropriately for Popen
@@ -159,7 +158,7 @@ def async_query(project_id, query):
     job_data = {
         'jobReference': {
             'projectId': project_id,
-            'job_id': str(uuid.uuid4())
+            'job_id': "bq" + str(uuid.uuid4())
         },
         'configuration': {
             'query': {
@@ -186,6 +185,8 @@ def async_query(project_id, query):
     parsedjson = out
     job_reference = parsedjson['jobReference']
     job_id = job_reference['jobId']
+    
+    output_log(datetime.fromtimestamp(start/1000.0).strftime('%Y-%m-%d %H:%M:%S.%f') + " Successfully started query " + project_id + ":" + job_id, "true", 20)
     
     addNewJobResult(job_id , start, end)
     
@@ -585,7 +586,7 @@ if __name__ == '__main__':
         multiplier = args.multiplier
     else: 
         multiplier = 1
-    
+        
     #ID just to distinguish between different runs of this script if run via the query_load_over_time script
     run_id = str(args.commandsFile) + "-" + str(project_id) + "-" + str(multiplier)
     
