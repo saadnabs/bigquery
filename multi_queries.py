@@ -138,13 +138,14 @@ def run_jobs():
             results = pool.apply_async(async_query, args=(project_id, cmd)) 
         else:
             #Split the command appropriately for Popen
+            commands_start_time = int(round(time.time() * 1000))
             command_args, statement = extract_quoted_sql(cmd) 
             p = subprocess.Popen(command_args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             
             #Store the processes to check their output later
             processes.append(p)
         
-    results.get()
+    #results.get()
     pool.close()
     #TODO does this slow things down?
     pool.join()
@@ -202,9 +203,7 @@ def wait_for_processes_and_start_pollers():
         for p in processes:
             #When the process has completed and returned a success exit code
             if p.poll() == 0:
-                print("p.poll: " + p.poll())
                 out, err = p.communicate()
-                print("out: " + out)
                 
                 command_end_time = int(round(time.time() * 1000)) 
                 str_command_end_time = str(datetime.now())
@@ -219,7 +218,7 @@ def wait_for_processes_and_start_pollers():
                 #TODO BQ specific, pass in the correct tech in here
                 polling_processes.append(subprocess.Popen(["python", "poller.py", str(job_id), "bq"], stdout=subprocess.PIPE, stderr=subprocess.PIPE))
                 
-                addNewJobResult(job_id, command_start_time, command_end_time)
+                addNewJobResult(job_id, commands_start_time, command_end_time)
                 
                 output_log(str_command_end_time + " " + str(out), "true", 20)
                 processes.remove(p)
@@ -264,8 +263,8 @@ def wait_for_pollers():
                         
                         #But check for it in the jobs_running
                         #TODO to test this still works with bash bq
-                        jb = get_job_in_list(job_id, jobs_run)
-                        fill_jb_details_and_complete(jb, parsedjson)   
+                        jb, index = get_job_in_list(job_id, jobs_run)
+                        fill_jb_details_and_complete(jb, parsedjson, -1)   
                         
 # [END wait_for_pollers()]
 
@@ -295,14 +294,20 @@ def fill_jb_details_and_complete(jb, json, index):
     
     jobs_completed.append(jb)
     
-    del jobs_run[index]
+    if (index != -1):
+        del jobs_run[index]
+    else:
+        jb_to_remove, found_at_index = get_job_in_list(jb.job_id, jobs_run)
+        del jobs_run[found_at_index]
 
 def get_job_in_list(id, list):
-    for job in list:
+    for i in range(0, len(jobs_run)):
+        #job in list:
+        job = jobs_run[i]
         if job.job_id == id:
-            return job
+            return job, i
         else:
-            return None
+            return None, i
 
 # [START wait_for_bqapi_jobs()]
 def wait_for_bqapi_jobs():
