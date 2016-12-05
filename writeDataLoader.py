@@ -73,12 +73,13 @@ def writeFile(resultsFile):
                 bytes_processed = values[3]
                 bash_start_time = datetime.strptime(values[4], "%Y-%m-%d %H:%M:%S.%f")
                 bash_end_time = datetime.strptime(values[5], "%Y-%m-%d %H:%M:%S.%f")
-                bq_start_time = datetime.strptime(values[6], "%Y-%m-%d %H:%M:%S.%f")
-                bq_end_time = datetime.strptime(values[7], "%Y-%m-%d %H:%M:%S.%f")
-                category = values[8]
-                query = values[9]
-                job_id = values[10]
-                run_id = values[11]
+                bq_creation_time = datetime.strptime(values[6], "%Y-%m-%d %H:%M:%S.%f")
+                bq_start_time = datetime.strptime(values[7], "%Y-%m-%d %H:%M:%S.%f")
+                bq_end_time = datetime.strptime(values[8], "%Y-%m-%d %H:%M:%S.%f")
+                category = values[9]
+                query = values[10]
+                job_id = values[11]
+                run_id = values[12]
                 
                 bash_start_hour = bash_start_time.hour
                 bash_start_minute = bash_start_time.minute
