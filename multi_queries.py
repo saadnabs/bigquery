@@ -164,7 +164,8 @@ def async_query(project_id, query):
             'query': {
                 'query': query,
                 'priority': 'INTERACTIVE',
-                'useQueryCache':'false'
+                'useQueryCache':'false',
+                'useLegacySql': legacy_sql
             }
         }
     }
@@ -271,21 +272,25 @@ def wait_for_pollers():
 
 def fill_jb_details_and_complete(jb, json, index):
     orig_jb = jb
-    
+
     status = json['status']
     state = status['state']
     jb.status = state
     
     if 'errorResult' in status:
         jb.error_result = status["errorResult"]
+        #TODO FR do something to handle errors and not output them in csv 
     
     statistics = json['statistics']
     jb.bq_creation_time = statistics['creationTime']
     jb.bq_start_time = statistics['startTime']
     jb.bq_end_time = statistics['endTime']
     jb.bq_duration = int(jb.bq_end_time) - int(jb.bq_start_time)
-    jb.bytes_processed = statistics['totalBytesProcessed']
-    
+    if 'totalBytesProcessed' in statistics:
+        jb.bytes_processed = statistics['totalBytesProcessed']
+    else: 
+        jb.bytes_processed = "N/A"
+        
     configuration = json['configuration']
     query = configuration['query']
     sql_statement = query['query']
@@ -393,7 +398,7 @@ def output_completed_jobs():
                           'BQ Job Creation Time', 'BQ Job Start Time', 'BQ Job End Time', 'Category', 'Query', 'Job Id', 'Run Id') )
         
         for job in jobs_completed:
-            writer.writerow( (job.status, job.bq_duration, job.bash_duration, human_readable_bytes(int(job.bytes_processed)), \
+            writer.writerow( (job.status, job.bq_duration, job.bash_duration, human_readable_bytes(job.bytes_processed), \
                           date_time_from_milliseconds(job.bash_start_time), date_time_from_milliseconds(job.bash_end_time), \
                           date_time_from_milliseconds(job.bq_creation_time), date_time_from_milliseconds(job.bq_start_time), date_time_from_milliseconds(job.bq_end_time), \
                           job.category, job.query_executed, job.job_id, run_id) )
@@ -474,8 +479,9 @@ class JobResult:
                '  |--> status[' + self.status + ']' + "\n" + \
                '  |--> bq_duration[' + str(self.bq_duration) + '] bq_creation_time[' + str(self.bq_creation_time) + '] bq_start_time[' + date_time_from_milliseconds(self.bq_start_time) + '] bq_end_time[' + date_time_from_milliseconds(self.bq_end_time) + ']' + "\n" + \
                '  |--> bash_duration[' + str(self.bash_duration) + '] bash_start_time[' + date_time_from_milliseconds(self.bash_start_time) + '] bash_end_time[' + date_time_from_milliseconds(self.bash_end_time) + ']' + "\n" + \
-               '  |--> bytes_processed[' + human_readable_bytes(int(self.bytes_processed)) + '] category[' + str(self.category) + ']' + "\n" + \
-               '  |--> query[' + str(self.query_executed) + ']'
+               '  |--> bytes_processed[' + human_readable_bytes(self.bytes_processed) + '] category[' + str(self.category) + ']' + "\n" + \
+               '  |--> query[' + str(self.query_executed) + ']' + \
+               '  |--> error_result[' + str(self.error_result) + ']'
 #End Class
 
 def date_time_from_milliseconds(ms):
@@ -483,11 +489,16 @@ def date_time_from_milliseconds(ms):
     return '%s.%03d' % (time.strftime('%Y-%m-%d %H:%M:%S', time.gmtime(s)), ms)
 
 def human_readable_bytes(num, suffix='B'):
-    for unit in ['','Ki','Mi','Gi','Ti','Pi','Ei','Zi']:
-        if abs(num) < 1024.0:
-            return "%3.1f%s%s" % (num, unit, suffix)
-        num /= 1024.0
-    return "%.1f%s%s" % (num, 'Yi', suffix) 
+    try:
+        num = int(num)
+        
+        for unit in ['','Ki','Mi','Gi','Ti','Pi','Ei','Zi']:
+            if abs(num) < 1024.0:
+                return "%3.1f%s%s" % (num, unit, suffix)
+            num /= 1024.0
+        return "%.1f%s%s" % (num, 'Yi', suffix) 
+    except ValueError:
+        return num
 
 #Script defaults that can be set
 commands_start_time = ""
@@ -561,11 +572,12 @@ if __name__ == '__main__':
     parser.add_argument('output_file', nargs="?", help='Name of the file to use to output the log/results.', default=datetime.now().strftime("%Y-%m-%d-%H-%M"))
     parser.add_argument('multiplier', nargs="?", help='A multiplier to be used to increase the executes of the commands by that multiplier.')
     parser.add_argument('-nco', '--no_console_output', action='store_true', help='A multiplier to be used to increase the executes of the commands by that multiplier.')
+    parser.add_argument('-l', '--legacy_sql', action='store_true', help='Choose if you want to use legacy sql, default is standard sql.')
     
     args = parser.parse_args()
     
     #Set the global variables from the params
-    global project_id, output_file, multiplier, no_console_output, run_id
+    global project_id, output_file, multiplier, no_console_output, run_id, legacy_sql
     project_id = args.project_id
     output_file = args.output_file
     
@@ -580,6 +592,7 @@ if __name__ == '__main__':
     
     #Set the correct "no console output" value
     no_console_output = args.no_console_output
+    legacy_sql = args.legacy_sql
 
     #Set a default value for multiplier to 1 if not passed in
     if (args.multiplier):

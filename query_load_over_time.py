@@ -91,6 +91,7 @@ def main(commands_file):
             #Append no_console_output if it's passed into this script         
             args = ["python","multi_queries.py", commands_file, project_id, output_file, str(m)]
             if no_console_output is not None and no_console_output != "": args.append("-nco")
+            if legacy_sql is not None and legacy_sql != False: args.append("-l")
             
             p = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             processes.append(p)
@@ -139,13 +140,15 @@ if __name__ == '__main__':
     parser.add_argument('-o', '--output-file', help='Name of the file to use to output the log/results.', default=datetime.now().strftime("%Y-%m-%d-%H-%M"))
     parser.add_argument('-nco', '--no_console_output', action='store_true', help='A multiplier to be used to increase the executes of the commands by that multiplier.')
     parser.add_argument('-w', '--wait_for_outputs', action='store_true', help='Should this script wait for outputs from the sub processes or just get the outputs in the output file?')
+    parser.add_argument('-l', '--legacy_sql', action='store_true', help='Use legacy sql, default is to use standard sql')
 
     args = parser.parse_args()
     
     #Setting params global
-    global project_id, output_file, multiplier_cap, no_console_output, wait_for_outputs
+    global project_id, output_file, multiplier_cap, no_console_output, wait_for_outputs, legacy_sql
     global time_period, ramp_up_period, multiplier
     
+    legacy_sql = args.legacy_sql
     project_id = args.project_id
     output_file = args.output_file
     time_period = args.time_period
