@@ -37,7 +37,7 @@ import sys
 import random
 import uuid
 
-from multiprocessing import Process
+from multiprocessing import Process, Manager
 from googleapiclient import discovery
 from oauth2client.client import GoogleCredentials
 from subprocess import Popen, PIPE, CalledProcessError
@@ -134,11 +134,13 @@ def run_jobs():
         if command.tech == tech_options[0]:
         #TODO is still quite slow, figure out multiprocessing 
         #     beeline TBD how to handle it
-            def async_callback(result, func=cmd):
-                print("result: " + result)
-                processes.append(result)
-            results = pool.apply_async(async_query, args=(project_id, cmd), callback=async_callback)
-            print("pool: " + str(pool))
+         
+        #def async_callback(result, func=cmd):
+        #        print("result: " + str(result))
+        #        processes.append(result)
+        
+            results = pool.apply_async(async_query, args=(project_id, cmd)) #, callback=async_callback
+            print("jobs run in run_jobs: " + str(jobs_run))
         else:
             #Split the command appropriately for Popen
             command_args, statement = extract_quoted_sql(cmd) 
@@ -147,7 +149,7 @@ def run_jobs():
             #Store the processes to check their output later
             processes.append(p)
         
-    #results.get()
+    results.get()
     pool.close()
     print("len of processes: " + str(len(processes)))
     
@@ -172,45 +174,28 @@ def async_query(project_id, query):
     }
     
     # Construct the service object for interacting with the BigQuery API.
-    print("before bq")
     bq = init_bq_api()
-    print("after bq " + str(bq))
+    
     #Get start time
-    start = datetime.now()
-    #TODO confirm removed the return
-    print("before")
-    print("bq before " + str(bq))
+    start = int(round(time.time() * 1000))
+    
     out = bq.jobs().insert(
         projectId=project_id,
         body=job_data).execute(num_retries=3)
-    print('here')
     print("out: " + str(out))
-    end = datetime.now()
+    end = int(round(time.time() * 1000))
     
-    #update job result info here with out and append to run jobs
-    addNewJobResult(out , start, end)
+    #Process the JSON to extract and store the job_id in a new JobResult 
+    print("before json")
+    parsedjson = out
+    job_reference = parsedjson['jobReference']
+    job_id = job_reference['jobId']
+    print("job_id: " + job_id)
+    
+    addNewJobResult(job_id , start, end)
+    print("jobs run in async_query: " + str(jobs_run))
     
 # [END async_query]
-    
-# [START extract_quoted_sql]
-def extract_quoted_sql(cmd):
-    
-    #If we have a quote separating out a SQL statement in BQ
-    #TODO BQ specific, or what does a hive call look like? deal with other tech checks here
-        #TODO online, check kenneth email with US folks about hive CLI
-    if cmd.find('"') != -1:
-        #First the double quote to extract the SQL statement
-        first_quote = cmd.find('"') + 1
-        statement = cmd[first_quote:-1]
-    
-        #Break up the command options into list
-        command_args = cmd[:first_quote - 1].split()
-        command_args.append(statement)
-    else:
-        command_args = cmd.split()
-    
-    return command_args, statement
-# [END extract_quoted_sql]
     
 # [START wait_for_processes_and_start_pollers()]
 def wait_for_processes_and_start_pollers():
@@ -218,7 +203,7 @@ def wait_for_processes_and_start_pollers():
     #FR: add in ability to only have X number of pollers spun up so that they don't exhaust a machine if too many jobs are running, have a pool and spin up more as needed
     #    or maybe this FR is about using multiprocessing to call the inside code via separate thread -- making sure those threads have access to: project_id, jobs_run
     #    it would have to use a thread pool otherwise I'd have tons of threads spinning up like crazy  
-    print("processes: " + str(len(processes)))
+    print("jobs_run: " + str(len(jobs_run)))
     #Check the status of the bash shell processes, and get their output
     while len(processes) > 0:
         for p in processes:
@@ -252,10 +237,16 @@ def wait_for_processes_and_start_pollers():
 
 def addNewJobResult(job_id, command_start_time, command_end_time):
     #Create a JobResult and start filling in the info
+    print("in addNewJobResult")
     jb = JobResult(job_id)
     jb.bash_start_time = command_start_time
+    print("command_start_time " + str(command_start_time))
     jb.bash_end_time = command_end_time
+    print("command_end_time " + str(command_end_time))
     jb.bash_duration = int(command_end_time) - int(command_start_time)
+    print("bash_duration " + str(jb.bash_duration))
+    
+    #print("jb " + jb.print_jobresult_details())
     jobs_run.append(jb)
 
 # [START wait_for_pollers()]
@@ -285,29 +276,84 @@ def wait_for_pollers():
                         jb = JobResult(job_id);
                         
                         #But check for it in the jobs_running
-                        for job in jobs_run:
-                            if job.job_id == job_id:
-                                jb = job
-                                
-                        jb.status = state
-                        statistics = parsedjson['statistics']
-                        jb.error_result = status["errorResult"]
-                        jb.bq_creation_time = statistics['creationTime']
-                        jb.bq_start_time = statistics['startTime']
-                        jb.bq_end_time = statistics['endTime']
-                        jb.bq_duration = int(jb.bq_end_time) - int(jb.bq_start_time)
-                        jb.bytes_processed = statistics['totalBytesProcessed']
+                        #TODO to test this still works with bash bq
+                        jb = get_job_in_list(job_id, jobs_run)
+                        fill_jb_details_and_complete(jb, parsedjson)   
                         
-                        configuration = parsedjson['configuration']
-                        query = configuration['query']
-                        sql_statement = query['query']
-                        jb.query_executed = sql_statement
-                        
-                        jb.category = get_query_category(jb.query_executed)
-                        
-                        jobs_completed.append(jb)
-                        if jb in jobs_run: jobs_run.remove(jb)
 # [END wait_for_pollers()]
+
+def fill_jb_details_and_complete(jb, json, index):
+    orig_jb = jb
+    
+    status = json['status']
+    state = status['state']
+    jb.status = state
+    
+    if 'errorResult' in status:
+        jb.error_result = status["errorResult"]
+    
+    statistics = json['statistics']
+    jb.bq_creation_time = statistics['creationTime']
+    jb.bq_start_time = statistics['startTime']
+    jb.bq_end_time = statistics['endTime']
+    jb.bq_duration = int(jb.bq_end_time) - int(jb.bq_start_time)
+    jb.bytes_processed = statistics['totalBytesProcessed']
+    
+    configuration = json['configuration']
+    query = configuration['query']
+    sql_statement = query['query']
+    jb.query_executed = sql_statement
+    
+    jb.category = get_query_category(jb.query_executed)
+    
+    jobs_completed.append(jb)
+    print("job_completed len " + str(len(jobs_completed)))
+    
+    del jobs_run[index]
+    #jobs_run.remove(orig_jb)
+    '''for job in jobs_run[:]:
+        print("job:id: " + jb.job_id)
+        if job.job_id == jb.job_id:
+            jb_to_remove = get_job_in_list(jb.job_id, jobs_run)
+            print("job == jb? " + str(job == jb))
+            print("jb_to_remove == jb? " + str(jb_to_remove == jb))
+            print("true, found the same jb")
+            jobs_run.remove(jb_to_remove)'''
+    '''if orig_jb in jobs_run: 
+        print("found in")
+        jobs_run.remove(orig_jb)'''
+
+def get_job_in_list(id, list):
+    for job in list:
+        if job.job_id == id:
+            return job
+        else:
+            return None
+
+# [START wait_for_bqapi_jobs()]
+def wait_for_bqapi_jobs():
+    
+    bq = init_bq_api()
+    while len(jobs_run) > 0:
+        for i in xrange(len(jobs_run) - 1, -1, -1):
+            print('i: ' + str(i))
+            jb = jobs_run[i]
+    
+        #for jb in jobs_run[:]:
+            print("to process job: " + str(jb.job_id))
+            
+            out = bq.jobs().get(projectId=project_id, jobId=jb.job_id).execute(num_retries=3)
+                
+            print("out from get: " + str(out))
+            
+            status = out['status']
+            state = status['state']
+            
+            if(state == "DONE"):
+                fill_jb_details_and_complete(jb, out, i)
+            
+            print("jobs_run len " + str(len(jobs_run)))
+# [END wait_for_bqapi_jobs()]
 
 # [START get_query_category(query)]
 def get_query_category(query):
@@ -318,6 +364,27 @@ def get_query_category(query):
     
     output_log("Somehow non of the loaded commands match the executed query here", None, 30)
 # [END get_query_category(query)]    
+    
+# [START extract_quoted_sql]
+def extract_quoted_sql(cmd):
+    #TODO check if this ruins either bqapi output or bq cli
+    statement = None
+    #If we have a quote separating out a SQL statement in BQ
+    #TODO BQ specific, or what does a hive call look like? deal with other tech checks here
+        #TODO online, check kenneth email with US folks about hive CLI
+    if cmd.find('"') != -1:
+        #First the double quote to extract the SQL statement
+        first_quote = cmd.find('"') + 1
+        statement = cmd[first_quote:-1]
+    
+        #Break up the command options into list
+        command_args = cmd[:first_quote - 1].split()
+        command_args.append(statement)
+    else:
+        command_args = cmd.split()
+    
+    return command_args, statement
+# [END extract_quoted_sql]
     
 # [START output_completed_jobs]
 def output_completed_jobs():
@@ -452,7 +519,9 @@ def human_readable_bytes(num, suffix='B'):
 #Script defaults that can be set
 commands_start_time = ""
 commands = [] #Used to store the commands loaded from the file
-jobs_run = [] #Used to store the job results of running jobs
+#jobs_run = [] #Used to store the job results of running jobs
+manager = Manager()
+jobs_run = manager.list()
 jobs_completed = [] #Used to store the job results of jobs that have been confirmed completed.
 processes = [] #Used to store the processes launched in parallel to run all the commands
 polling_processes = [] #Used to store the processes running the pollers for each job
@@ -485,18 +554,25 @@ def main(commandsFile):
     run_jobs()
     wait_for_processes_and_start_pollers()
     wait_for_pollers()
+    wait_for_bqapi_jobs()
     
-    output_log("\n--------------------------------------------------------", "true", 20)
-    output_log(str(datetime.now()) + " -- Job Results", "true", 20)
-    output_log("--------------------------------------------------------\n", "true", 20)
-    output_completed_jobs();
-    output_log("\n--------------------------------------------------------\n", "true", 20)
+    if len(jobs_completed) > 0:
+        output_log("\n--------------------------------------------------------", "true", 20)
+        output_log(str(datetime.now()) + " -- Job Results", "true", 20)
+        output_log("--------------------------------------------------------\n", "true", 20)
+        output_completed_jobs();
+        writeDataLoaderForCharts()
+        shutil.copyfile(commandsFile, result_path + output_file + "-commands.file")
+
+    else:
+        output_log("\n--------------------------------------------------------", "true", 20)
+        output_log("No jobs ran and completed.", "true", 20)
+        output_log("\n--------------------------------------------------------", "true", 20)
+    
+    #output_log("\n--------------------------------------------------------\n", "true", 20)
     output_log("End of run with id: " + run_id, "true", 20)
     output_log("++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n\n", "true", 20)
     
-    writeDataLoaderForCharts()
-    shutil.copyfile(commandsFile, result_path + output_file + "-commands.file")
-
 # [END run]   
   
 # [START main]
