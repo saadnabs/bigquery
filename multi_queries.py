@@ -108,6 +108,7 @@ def load_commands(filename):
             else:
                 t = tech_options[3]
                     
+            #set the category and the executable on the command
             c = Command(commandComponents[0].strip(), command)
             c.tech = t
                 
