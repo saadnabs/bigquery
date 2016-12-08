@@ -17,8 +17,8 @@
 Date:     2016-11-09
 Author:   Nabeel Saad
 Desc:     Command-line application, which asynchronously executes jobs via bash/CLI (for BQ and others like Hive).
-Use:      Commands to run are expected in a separate file, each command on a new line, semi-colon delimited with format:
-          category; number of times to run; command
+Use:      Commands to run are expected in a separate file, each command on a new line, delimited by pipe '|' with format:
+          category| number of times to run| command/type "statemet"
 Params:   GCP / BigQuery project ID, file containing commands to run
 """
 
@@ -143,13 +143,13 @@ def run_jobs():
             
             #Store the processes to check their output later
             processes.append(p)
-        
+    
+    output_log("\n", "true", 20)    
     #results.get()
     pool.close()
     #TODO does this slow things down?
     pool.join()
     
-    output_log("\n", "true", 20)
 # [END run_jobs]
 
 def async_query(project_id, query):
@@ -395,13 +395,15 @@ def output_completed_jobs():
         
         if(not file_exists):
             writer.writerow( ('Status', 'BQ Job Duration', 'Bash Job Duration', 'Bytes Processed', 'Bash Job Start Time', 'Bash Job End Time', \
-                          'BQ Job Creation Time', 'BQ Job Start Time', 'BQ Job End Time', 'Category', 'Query', 'Job Id', 'Run Id') )
+                          'BQ Job Creation Time', 'BQ Job Start Time', 'BQ Job End Time', 'Category', 'Query', 'Job Id', 'Run Id', 'Error') )
         
         for job in jobs_completed:
-            writer.writerow( (job.status, job.bq_duration, job.bash_duration, human_readable_bytes(job.bytes_processed), \
+            status = job.status
+            if job.error_result != "": status = "ERROR" 
+            writer.writerow( (status, job.bq_duration, job.bash_duration, human_readable_bytes(job.bytes_processed), \
                           date_time_from_milliseconds(job.bash_start_time), date_time_from_milliseconds(job.bash_end_time), \
                           date_time_from_milliseconds(job.bq_creation_time), date_time_from_milliseconds(job.bq_start_time), date_time_from_milliseconds(job.bq_end_time), \
-                          job.category, job.query_executed, job.job_id, run_id) )
+                          job.category, job.query_executed, job.job_id, run_id, job.error_result) )
 
     finally:
         f.close()
@@ -475,12 +477,14 @@ class JobResult:
         print('JobResult with job_id[' + self.job_id + ']')
     
     def print_jobresult_details(self):
-        return 'JobResult with job_id[' + self.job_id + ']' + "\n" + \
+        with_error = ""
+        if self.error_result != "": with_error = "with errors"
+        return 'JobResult with job_id[' + self.job_id + ' ' + with_error + ']' + "\n" + \
                '  |--> status[' + self.status + ']' + "\n" + \
                '  |--> bq_duration[' + str(self.bq_duration) + '] bq_creation_time[' + str(self.bq_creation_time) + '] bq_start_time[' + date_time_from_milliseconds(self.bq_start_time) + '] bq_end_time[' + date_time_from_milliseconds(self.bq_end_time) + ']' + "\n" + \
                '  |--> bash_duration[' + str(self.bash_duration) + '] bash_start_time[' + date_time_from_milliseconds(self.bash_start_time) + '] bash_end_time[' + date_time_from_milliseconds(self.bash_end_time) + ']' + "\n" + \
                '  |--> bytes_processed[' + human_readable_bytes(self.bytes_processed) + '] category[' + str(self.category) + ']' + "\n" + \
-               '  |--> query[' + str(self.query_executed) + ']' + \
+               '  |--> query[' + str(self.query_executed) + ']' + "\n" + \
                '  |--> error_result[' + str(self.error_result) + ']'
 #End Class
 
