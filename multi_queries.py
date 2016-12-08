@@ -248,7 +248,12 @@ def wait_for_pollers():
                 #If the process returns an output
                 if out != None: 
                     polling_processes.remove(p)
-                    output_log("  |--> waiting to poll " + str(len(jobs_run)) + " job(s)", "true", 20)
+                    
+                if(state == "DONE"):
+                    if len(jobs_run) - 1 > 0:
+                        output_log("  |--> job completed. waiting to poll " + str(len(jobs_run) - 1) + " job(s)", "true", 20)
+                    else:
+                        output_log("  |--> job completed. all job(s) completed", "true", 20)
                     
                     #TODO BQ specific, response would be different
                     #Process the JSON and look for the relevant information.
@@ -329,7 +334,10 @@ def wait_for_bqapi_jobs():
             state = status['state']
             
             if(state == "DONE"):
-                output_log("  |--> waiting to poll " + str(len(jobs_run)) + " job(s)", "true", 20)
+                if len(jobs_run) - 1 > 0:
+                    output_log("  |--> job completed. waiting to poll " + str(len(jobs_run) - 1) + " job(s)", "true", 20)
+                else:
+                    output_log("  |--> job completed. all job(s) completed", "true", 20)
                 fill_jb_details_and_complete(jb, out, i)
 # [END wait_for_bqapi_jobs()]
 
@@ -478,14 +486,18 @@ class JobResult:
     
     def print_jobresult_details(self):
         with_error = ""
-        if self.error_result != "": with_error = "with errors"
+        err_output = ""
+        
+        if self.error_result != "":
+            with_error = "with errors"
+            err_output = '  |--> error_result[' + str(self.error_result) + ']' + "\n"
         return 'JobResult with job_id[' + self.job_id + ' ' + with_error + ']' + "\n" + \
                '  |--> status[' + self.status + ']' + "\n" + \
                '  |--> bq_duration[' + str(self.bq_duration) + '] bq_creation_time[' + str(self.bq_creation_time) + '] bq_start_time[' + date_time_from_milliseconds(self.bq_start_time) + '] bq_end_time[' + date_time_from_milliseconds(self.bq_end_time) + ']' + "\n" + \
                '  |--> bash_duration[' + str(self.bash_duration) + '] bash_start_time[' + date_time_from_milliseconds(self.bash_start_time) + '] bash_end_time[' + date_time_from_milliseconds(self.bash_end_time) + ']' + "\n" + \
                '  |--> bytes_processed[' + human_readable_bytes(self.bytes_processed) + '] category[' + str(self.category) + ']' + "\n" + \
                '  |--> query[' + str(self.query_executed) + ']' + "\n" + \
-               '  |--> error_result[' + str(self.error_result) + ']'
+               err_output
 #End Class
 
 def date_time_from_milliseconds(ms):
