@@ -68,6 +68,14 @@ def writeFile(resultsFile):
             for line in rf: 
                 values = line.split(';')
                 
+                '''
+                if count < 1: #continue #test purposes
+                    print(values)
+                    print("len: " + str(len(values)))
+                    count += 1
+                '''
+                
+                status = values[0]
                 bq_duration = values[1]
                 bash_duration = values[2]
                 bytes_processed = values[3]
@@ -80,6 +88,7 @@ def writeFile(resultsFile):
                 query = values[10]
                 job_id = values[11]
                 run_id = values[12]
+                error_result = values[13]
                 
                 bash_start_hour = bash_start_time.hour
                 bash_start_minute = bash_start_time.minute
@@ -101,8 +110,6 @@ def writeFile(resultsFile):
                         " new Date(0, 0, 0, " + str(bash_end_hour) + ", " + str(bash_end_minute) + ", " + str(bash_end_second) + ")], \n")
                 f.write("        [\"" + str(job_id) + "\", \"BQ\", new Date(0, 0, 0, " + str(bq_start_hour) + ", " + str(bq_start_minute) + ", " + str(bq_start_second) + ")," + \
                         " new Date(0, 0, 0, " + str(bq_end_hour) + ", " + str(bq_end_minute) + ", " + str(bq_end_second) + ")], \n")
-            
-                if count > 1: continue #test purposes
             
             f.write("    ];\n")
             f.write("  listOfResults[\"" + js_var_name + "\"] = " + js_var_name + ";")
