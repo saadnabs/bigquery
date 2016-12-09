@@ -368,6 +368,7 @@ def extract_quoted_sql(cmd):
         command_args = cmd[:first_quote - 1].split()
         command_args.append(statement)
     else:
+        statement = cmd
         command_args = cmd.split()
     
     return command_args, statement
@@ -409,6 +410,8 @@ def output_completed_jobs():
         for job in jobs_completed:
             status = job.status
             if job.error_result != "": status = "ERROR" 
+            #If the last character in the query is a semi-colon, remove it as it messes up the CSV file
+            if job.query_executed[:-1] == ";": job.query_executed = job.query_executed[:-1]
             writer.writerow( (status, job.bq_duration, job.bash_duration, human_readable_bytes(job.bytes_processed), \
                           date_time_from_milliseconds(job.bash_start_time), date_time_from_milliseconds(job.bash_end_time), \
                           date_time_from_milliseconds(job.bq_creation_time), date_time_from_milliseconds(job.bq_start_time), date_time_from_milliseconds(job.bq_end_time), \
