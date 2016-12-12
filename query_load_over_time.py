@@ -59,6 +59,8 @@ def increase_multiplier(current_multiplier):
         #Making exp_multiplier a global variable to retain the increment
         current_multiplier =  math.pow(2, exp_multiplier) #1, 2, 4, 8, 16, 32
         exp_multiplier += 1
+    elif multiplier == "none":
+        return 1;
     else:
         print("No multiplier provided or not a valid option, defaulting to incremental")
         current_multiplier =  current_multiplier + 1
@@ -135,7 +137,7 @@ if __name__ == '__main__':
     parser.add_argument('time_period', help='Time period to run, specifying the unit (s/m/h) or seconds are assumed')
     parser.add_argument('-r', '--ramp_up_period', help='How often the multiplier should be applied, default set to 10', default=10)
     #TODO: implement the different multiplier options and decide if I want to do exponential and if that makes sense
-    parser.add_argument('-m', '--multiplier', help='Define how you want the multiplier to work, valid options are: increment (+1), step2 (+2), exponential(2^)\ndefault is set to incremental\nany incorrect input will be defaulted to incremental', default="incremental")
+    parser.add_argument('-m', '--multiplier', help='Define how you want the multiplier to work, valid options are: none(always 1), increment (+1), step2 (+2), exponential(2^)\ndefault is set to incremental\nany incorrect input will be defaulted to incremental', default="incremental")
     parser.add_argument('-mc', '--multiplier-cap', help='Define a cap for how high the multiplier for the number of queries to run can go, default is set to 10', default=10)
     parser.add_argument('-o', '--output-file', help='Name of the file to use to output the log/results.', default=datetime.now().strftime("%Y-%m-%d-%H-%M"))
     parser.add_argument('-nco', '--no_console_output', action='store_true', help='A multiplier to be used to increase the executes of the commands by that multiplier.')
