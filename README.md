@@ -20,11 +20,8 @@ information](https://developers.google.com/identity/protocols/application-defaul
 4. Install dependencies in `requirements.txt`:
 
         $ pip install -r requirements.txt
-
-5. TODO Install dependencies for psutil
-        git clone https://github.com/giampaolo/psutil/blob/master/INSTALL.rst
-        make install-pip
-        sudo pip install psutil
+        
+5. Run: easy_install --upgrade google-api-python-client
 
 ## Running the samples
 
