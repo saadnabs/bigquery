@@ -120,30 +120,44 @@ def load_commands(filename):
 
 # [START run_jobs]
 def run_jobs():
-    pool = mp.Pool(10, initializer=init_bq_api)
+    pool = mp.Pool(50)
     
     #Iterate through all the commands
-    for command in commands:
-        
+    #for command in commands:
+    iterator = 0;
+    while True:
+        command = commands[iterator]
         cmd = command.executable
         
         #Output command to be run:
         output_log("   |    ", "true", 20)
         output_log("   |--> " + cmd, "true", 20)
         
-        #Run each command in a process, handling BQ API differently
-        if command.tech == tech_options[0]:
-        #TODO is still quite slow, figure out multiprocessing 
-        #     beeline TBD how to handle it
-            results = pool.apply_async(async_query, args=(project_id, cmd)) 
+        #TODO: test, ensuring to not exceed the limit
+        print("at iterator " + str(iterator) + " --len jobs_run: " + str(len(jobs_run)) + " -- len processes: " + str(len(processes)))
+        if len(processes) >= 49 or len(jobs_run) >= 49:
+            sleep(1)
         else:
-            #Split the command appropriately for Popen
-            commands_start_time = int(round(time.time() * 1000))
-            command_args, statement = extract_quoted_sql(cmd) 
-            p = subprocess.Popen(command_args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            #Run each command in a process, handling BQ API differently
+            if command.tech == tech_options[0]:
+            #TODO is still quite slow, figure out multiprocessing 
+            #     beeline TBD how to handle it
+                results = pool.apply_async(async_query, args=(project_id, cmd)) 
+            else:
+                #Split the command appropriately for Popen
+                commands_start_time = int(round(time.time() * 1000))
+                command_args, statement = extract_quoted_sql(cmd) 
+                p = subprocess.Popen(command_args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                
+                #Store the processes to check their output later
+                processes.append(p)
             
-            #Store the processes to check their output later
-            processes.append(p)
+            iterator += 1
+        
+            pool.apply_async(wait_for_processes_and_start_pollers, args=())
+            if iterator == len(commands): break 
+                
+        #TODO FR move polling in here as a separate thread to run immediately, and change for to while more commands, run them, as we wait for more threads
     
     output_log("\n", "true", 20)    
     #results.get()
@@ -202,7 +216,9 @@ def wait_for_processes_and_start_pollers():
     #    it would have to use a thread pool otherwise I'd have tons of threads spinning up like crazy  
 
     #Check the status of the bash shell processes, and get their output
+    output_log("in wait for processes and start pollers + len processes:  " + str(len(processes)), "true", 20)
     while len(processes) > 0:
+        output_log("num process in loop: " + str(len(processes)))
         for p in processes:
             #When the process has completed and returned a success exit code
             if p.poll() == 0:
@@ -224,6 +240,7 @@ def wait_for_processes_and_start_pollers():
                 addNewJobResult(job_id, commands_start_time, command_end_time)
                 
                 output_log(str_command_end_time + " " + str(out), "true", 20)
+                output_log("in wfpsp, job_id: " + job_id + " processes len: " + str(len(processes)) + "job_run len " + str(len(jobs_run)))
                 processes.remove(p)
     
     output_log(" ", "true", 20)
@@ -527,8 +544,8 @@ commands = [] #Used to store the commands loaded from the file
 manager = Manager()
 jobs_run = manager.list()
 jobs_completed = [] #Used to store the job results of jobs that have been confirmed completed.
-processes = [] #Used to store the processes launched in parallel to run all the commands
-polling_processes = [] #Used to store the processes running the pollers for each job
+processes = manager.list() #Used to store the processes launched in parallel to run all the commands
+polling_processes = manager.list() #Used to store the processes running the pollers for each job
 path="runs/"
 result_path = path + "results/"
 tech_options = ["bqapi", "bq", "beeline", "other"]
@@ -556,7 +573,7 @@ def main(commandsFile):
         bigquery = init_bq_api()
     
     run_jobs()
-    wait_for_processes_and_start_pollers()
+    #wait_for_processes_and_start_pollers()
     
     output_log("Awaiting " + str(len(jobs_run)) + " BigQuery jobs to complete", "true", 20)
     
